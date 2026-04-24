@@ -1,6 +1,6 @@
 {
   "name": "blazedocs",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "BlazeDocs CLI — convert PDFs to Markdown via the BlazeDocs API. Preserves tables, lists, and document structure.",
   "type": "module",
   "bin": {

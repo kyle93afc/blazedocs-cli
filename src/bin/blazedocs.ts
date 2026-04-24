@@ -7,7 +7,7 @@ import { usageCommand } from "../commands/usage.js";
 import { convertCommand } from "../commands/convert.js";
 import { QuotaExceededError, exitCodeFor } from "../errors.js";
 
-const VERSION = "2.0.1";
+const VERSION = "2.0.2";
 
 const program = new Command();
 program

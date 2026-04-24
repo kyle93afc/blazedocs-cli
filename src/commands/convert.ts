@@ -90,7 +90,8 @@ export async function convertCommand(
     } else {
       target = opts.output;
     }
-    fs.writeFileSync(target, result.markdown);
+    const payload = result.markdown.endsWith("\n") ? result.markdown : result.markdown + "\n";
+    fs.writeFileSync(target, payload);
     if (!opts.silent) {
       process.stderr.write(
         `Wrote ${target} (${result.page_count} pages, ${result.usage.pages_remaining} pages remaining)\n`,

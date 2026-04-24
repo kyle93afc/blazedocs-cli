@@ -2,6 +2,23 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.0.2] — 2026-04-24
+
+### Fixed
+
+- **`usage` command showed 0/0/0 pages instead of real quota.** The BlazeDocs API's `GET /api/v1/convert` returns usage nested as `{ usage: { monthlyPages }, limits: { pages } }`, but the CLI was reading flat `pages_used` / `pages_limit` / `pages_remaining` fields (which only exist on `POST /api/v1/convert` responses). The CLI now normalizes both shapes via a new `normalizeUsage` helper. Verified end-to-end: real account with 859/10,000 pages used now prints correctly.
+- **`whoami` command showed "unknown (tier plan)" — no email displayed.** The `GET /api/v1/convert` endpoint does not return an email field, so the CLI was hitting its "unknown" fallback for every user. The output is now `{tier} plan — {pages_used}/{pages_limit} pages used, {remaining} remaining` when no email is available. If the server adds an `email` field later, it will be shown instead.
+- **Convert output files now end with a trailing newline.** Previously `.md` files ended mid-line (e.g. `liquor jugs.` with no `\n`), breaking POSIX conventions and breaking diff/cat behaviors on some terminals.
+
+### Added
+
+- **`normalizeUsage()` helper** exported from `src/api.ts` — collapses the API's nested and flat response shapes into a consistent `{ pagesUsed, pagesLimit, pagesRemaining, tier }` object. Used by `usage` and `whoami` commands.
+- **4 new regression tests** in `tests/api.test.ts` covering both response shapes and the empty-response fallback.
+
+### Known server-side issue (tracked, not fixed here)
+
+The API's `GET /api/v1/convert` and `POST /api/v1/convert` endpoints return different shapes for the same logical data (usage + limits). This CLI release works around the divergence client-side. The server should ship a unified response contract so all clients can rely on one shape. Tracked in the monorepo's `TODOS.md` under "Unified error contract for /api/v1/*".
+
 ## [2.0.1] — 2026-04-24
 
 ### Fixed

@@ -1,5 +1,5 @@
 import { resolveApiKey } from "../config.js";
-import { getUsage } from "../api.js";
+import { getUsage, normalizeUsage } from "../api.js";
 import { AuthError } from "../errors.js";
 
 export interface UsageOptions {
@@ -18,11 +18,8 @@ export async function usageCommand(opts: UsageOptions): Promise<void> {
     return;
   }
 
-  const used = snapshot.pages_used ?? 0;
-  const limit = snapshot.pages_limit ?? 0;
-  const remaining = snapshot.pages_remaining ?? Math.max(limit - used, 0);
-  const tier = (snapshot.tier as string | undefined) ?? "unknown";
+  const { pagesUsed, pagesLimit, pagesRemaining, tier } = normalizeUsage(snapshot);
   process.stdout.write(
-    `Pages used:      ${used}\nPages limit:     ${limit}\nPages remaining: ${remaining}\nTier:            ${tier}\n`,
+    `Pages used:      ${pagesUsed}\nPages limit:     ${pagesLimit}\nPages remaining: ${pagesRemaining}\nTier:            ${tier}\n`,
   );
 }

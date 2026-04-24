@@ -2,8 +2,20 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { spawnSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 
 const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.js");
+
+// Isolate from any real ~/.blazedocs/config.json on the dev machine.
+function unauthEnv(): NodeJS.ProcessEnv {
+  const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "bd-smoke-"));
+  return {
+    ...process.env,
+    BLAZEDOCS_API_KEY: "",
+    HOME: tmpHome,
+    USERPROFILE: tmpHome,
+  };
+}
 
 describe("binary smoke tests", () => {
   beforeAll(() => {
@@ -37,21 +49,22 @@ describe("binary smoke tests", () => {
   });
 
   it("prints the auth hint exactly once on AuthError (regression for v2.0.0 duplicate hint)", () => {
-    const res = spawnSync(
-      process.execPath,
-      [BIN, "whoami"],
-      { encoding: "utf8", env: { ...process.env, BLAZEDOCS_API_KEY: "" } },
-    );
+    const res = spawnSync(process.execPath, [BIN, "whoami"], {
+      encoding: "utf8",
+      env: unauthEnv(),
+    });
     expect(res.status).toBe(3);
     const hintCount = (res.stderr.match(/blazedocs login/g) || []).length;
     expect(hintCount).toBe(1);
   });
 
   it("fails fast on missing local file without printing 'Converting...' (regression for v2.0.0)", () => {
+    const env = unauthEnv();
+    env.BLAZEDOCS_API_KEY = "bd_live_dummy";
     const res = spawnSync(
       process.execPath,
       [BIN, "convert", "/tmp/definitely-does-not-exist-xyz.pdf"],
-      { encoding: "utf8", env: { ...process.env, BLAZEDOCS_API_KEY: "bd_live_dummy" } },
+      { encoding: "utf8", env },
     );
     expect(res.status).not.toBe(0);
     expect(res.stderr).toMatch(/File not found/);

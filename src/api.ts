@@ -19,12 +19,40 @@ export interface ConvertResult {
 }
 
 export interface UsageSnapshot {
+  // Flat shape (POST /convert response's `usage` field)
   pages_used?: number;
   pages_limit?: number;
   pages_remaining?: number;
+  // Nested shape (GET /convert response)
+  usage?: {
+    monthlyConversions?: number;
+    monthlyPages?: number;
+    monthlyTokens?: number;
+  };
+  limits?: {
+    conversions?: number;
+    pages?: number;
+    tokens?: number;
+    fileSize?: number;
+  };
   tier?: string;
   email?: string;
   [k: string]: unknown;
+}
+
+/** Normalize a usage response regardless of shape (flat or nested). */
+export function normalizeUsage(snapshot: UsageSnapshot): {
+  pagesUsed: number;
+  pagesLimit: number;
+  pagesRemaining: number;
+  tier: string;
+} {
+  const pagesUsed = snapshot.pages_used ?? snapshot.usage?.monthlyPages ?? 0;
+  const pagesLimit = snapshot.pages_limit ?? snapshot.limits?.pages ?? 0;
+  const pagesRemaining =
+    snapshot.pages_remaining ?? Math.max(pagesLimit - pagesUsed, 0);
+  const tier = snapshot.tier ?? "unknown";
+  return { pagesUsed, pagesLimit, pagesRemaining, tier };
 }
 
 interface ApiErrorBody {

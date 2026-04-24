@@ -1,5 +1,5 @@
 import { resolveApiKey } from "../config.js";
-import { getUsage } from "../api.js";
+import { getUsage, normalizeUsage } from "../api.js";
 import { AuthError } from "../errors.js";
 
 export async function whoamiCommand(): Promise<void> {
@@ -7,8 +7,14 @@ export async function whoamiCommand(): Promise<void> {
   if (!key) {
     throw new AuthError("Not authenticated. Run `blazedocs login` or set BLAZEDOCS_API_KEY.");
   }
-  const usage = await getUsage(key);
-  const email = (usage.email as string | undefined) ?? "unknown";
-  const tier = (usage.tier as string | undefined) ?? "unknown";
-  process.stdout.write(`${email} (${tier} plan)\n`);
+  const snapshot = await getUsage(key);
+  const { pagesUsed, pagesLimit, pagesRemaining, tier } = normalizeUsage(snapshot);
+  const email = (snapshot.email as string | undefined) ?? null;
+
+  if (email) {
+    process.stdout.write(`${email} (${tier} plan, ${pagesRemaining}/${pagesLimit} pages remaining)\n`);
+  } else {
+    // API does not currently return email on GET /convert. Fall back to tier + quota.
+    process.stdout.write(`${tier} plan — ${pagesUsed}/${pagesLimit} pages used, ${pagesRemaining} remaining\n`);
+  }
 }
