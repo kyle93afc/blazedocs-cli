@@ -85,7 +85,26 @@ export class SilentRenderer implements Renderer {
         return;
       }
 
-      // Generic payload with a human-readable message (logout, login).
+      // Skills get: dump `content` to stdout so `skills get core > SKILL.md` works.
+      if (typeof obj.content === "string" && typeof obj.name === "string") {
+        this.stdout.write(obj.content);
+        if (!obj.content.endsWith("\n")) this.stdout.write("\n");
+        return;
+      }
+
+      // Doctor report: per-check lines on stdout.
+      if (Array.isArray(obj.checks) && typeof obj.overall === "string") {
+        const checks = obj.checks as Array<{ name: string; status: string; detail: string; hint?: string }>;
+        for (const c of checks) {
+          const mark = c.status === "pass" ? "✓" : c.status === "warn" ? "▲" : "✗";
+          this.stdout.write(`${mark}  ${c.name}: ${c.detail}\n`);
+          if (c.hint) this.stdout.write(`   → ${c.hint}\n`);
+        }
+        this.stdout.write(`\nOverall: ${obj.overall}\n`);
+        return;
+      }
+
+      // Generic payload with a human-readable message (logout, login, skills list).
       if (typeof obj.message === "string") {
         this.stdout.write(`${obj.message}\n`);
         return;

@@ -91,6 +91,44 @@ program
   });
 
 program
+  .command("doctor")
+  .description("Run self-diagnostic checks (auth, network, config, disk, version)")
+  .action(async () => {
+    const global = program.opts<GlobalFlags>();
+    await run(global, async (ctx) => {
+      const { doctorCommand } = await import("../commands/doctor.js");
+      await doctorCommand({ version: VERSION }, ctx.renderer);
+    });
+  });
+
+const skillsCmd = program
+  .command("skills")
+  .description("Manage BlazeDocs skills (agent-discovery docs)");
+
+skillsCmd
+  .command("get")
+  .description("Print the specified skill's content (default: core)")
+  .argument("[name]", "Skill name", "core")
+  .action(async (name: string) => {
+    const global = program.opts<GlobalFlags>();
+    await run(global, async (ctx) => {
+      const { skillsGetCommand } = await import("../commands/skills.js");
+      await skillsGetCommand(name, ctx.renderer);
+    });
+  });
+
+skillsCmd
+  .command("list")
+  .description("List available skills")
+  .action(async () => {
+    const global = program.opts<GlobalFlags>();
+    await run(global, async (ctx) => {
+      const { skillsListCommand } = await import("../commands/skills.js");
+      await skillsListCommand(ctx.renderer);
+    });
+  });
+
+program
   .command("convert")
   .description("Convert one or more PDFs to Markdown")
   .argument("<inputs...>", "Local PDF paths or http/https URLs")

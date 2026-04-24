@@ -59,6 +59,18 @@ export class RawRenderer implements Renderer {
         return;
       }
 
+      // Skills get: dump markdown content to stdout (redirection-friendly).
+      if (typeof obj.content === "string" && typeof obj.name === "string") {
+        this.stdout.write(obj.content);
+        return;
+      }
+
+      // Doctor: single-word overall status for scripting.
+      if (Array.isArray(obj.checks) && typeof obj.overall === "string") {
+        this.stdout.write(`${obj.overall}\n`);
+        return;
+      }
+
       // Generic: message string.
       if (typeof obj.message === "string") {
         this.stdout.write(`${obj.message}\n`);
