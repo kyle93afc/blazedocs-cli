@@ -18,7 +18,7 @@
 import { Command, Option } from "commander";
 import type { Renderer } from "../ui/renderers/types.js";
 
-const VERSION = "3.0.0-beta.5";
+const VERSION = "3.0.0-beta.6";
 const KNOWN_COMMANDS = new Set([
   "login",
   "logout",

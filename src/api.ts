@@ -227,10 +227,12 @@ export async function convertPdf(
     fileName = path.basename(resolvedPath);
   }
 
-  const jsonBody = {
-    file_base64: fileBuffer.toString("base64"),
-    file_name: fileName,
-  };
+  const formData = new FormData();
+  const fileBytes = fileBuffer.buffer.slice(
+    fileBuffer.byteOffset,
+    fileBuffer.byteOffset + fileBuffer.byteLength,
+  ) as ArrayBuffer;
+  formData.append("file", new File([fileBytes], fileName, { type: "application/pdf" }));
 
   let response: Response;
   try {
@@ -238,9 +240,8 @@ export async function convertPdf(
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify(jsonBody),
+      body: formData,
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {

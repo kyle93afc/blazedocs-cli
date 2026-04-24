@@ -2,6 +2,12 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.6] — 2026-04-24
+
+### Changed
+
+- **CLI conversions now upload PDFs as multipart form-data instead of base64 JSON.** This matches the public API docs and avoids base64 inflating request bodies by roughly one third.
+
 ## [3.0.0-beta.5] — 2026-04-24
 
 ### Fixed

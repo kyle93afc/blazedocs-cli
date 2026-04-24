@@ -21,6 +21,34 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("convertPdf response parsing (regression for v1.1.0 empty-file bug)", () => {
+  it("uploads PDFs as multipart form-data, not base64 JSON", async () => {
+    const file = mkTempPdf();
+    let seenHeaders: HeadersInit | undefined;
+    let seenBody: BodyInit | null | undefined;
+    const stub: typeof fetch = async (_url, init) => {
+      seenHeaders = init?.headers;
+      seenBody = init?.body;
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    await convertPdf(file, { apiKey: "bd_test_key", fetchImpl: stub });
+
+    expect(seenBody).toBeInstanceOf(FormData);
+    expect(seenHeaders).toEqual({
+      Authorization: "Bearer bd_test_key",
+    });
+  });
+
   it("reads markdown from result.data.markdown, not result.markdown", async () => {
     const file = mkTempPdf();
     const stub: typeof fetch = async () =>
