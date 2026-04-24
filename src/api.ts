@@ -2,8 +2,63 @@ import * as fs from "fs";
 import * as path from "path";
 import { AuthError, QuotaExceededError, NetworkError, ApiError } from "./errors.js";
 
-export const API_BASE =
-  process.env.BLAZEDOCS_API_URL || "https://blazedocs.io/api/v1";
+/**
+ * API base URL resolution with hard security guards.
+ *
+ * The default is the production BlazeDocs API. Users can override via
+ * BLAZEDOCS_API_URL for self-hosted deployments or staging environments.
+ *
+ * Guards (otherwise the API key would leak to any host an attacker-controlled
+ * env var points at):
+ *   1. Only http://localhost OR http://127.0.0.1 is allowed for http://.
+ *      Any other http:// URL is rejected at module load.
+ *   2. Any other scheme (file://, javascript:, etc) is rejected.
+ *   3. When the override is in effect, a one-time warning goes to stderr so
+ *      the user sees it. Suppressed under BLAZEDOCS_SUPPRESS_API_URL_WARNING=1.
+ */
+function resolveApiBase(): string {
+  const override = process.env.BLAZEDOCS_API_URL;
+  if (!override) return "https://blazedocs.io/api/v1";
+
+  let parsed: URL;
+  try {
+    parsed = new URL(override);
+  } catch {
+    throw new Error(
+      `BLAZEDOCS_API_URL is not a valid URL: ${override}. Must be https://host/path or http://localhost/...`,
+    );
+  }
+
+  if (parsed.protocol === "https:") {
+    // Accept any https:// (self-hosted, staging, prod).
+  } else if (parsed.protocol === "http:") {
+    const isLocal = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+    if (!isLocal) {
+      throw new Error(
+        `BLAZEDOCS_API_URL uses http:// on a non-local host (${parsed.hostname}). Your API key would leak in plaintext. Use https:// or set the host to localhost.`,
+      );
+    }
+  } else {
+    throw new Error(
+      `BLAZEDOCS_API_URL scheme "${parsed.protocol}" is not allowed. Use https:// (or http://localhost for dev).`,
+    );
+  }
+
+  // Only warn on interactive stderr. Under --json or any piped stderr the
+  // warning would be structured-output pollution; agents pattern-match on
+  // the stream contents, humans see this warning in a TTY.
+  const shouldWarn =
+    !process.env.BLAZEDOCS_SUPPRESS_API_URL_WARNING &&
+    process.stderr.isTTY;
+  if (shouldWarn) {
+    process.stderr.write(
+      `⚠ BLAZEDOCS_API_URL override active: ${override} (set BLAZEDOCS_SUPPRESS_API_URL_WARNING=1 to silence)\n`,
+    );
+  }
+  return override;
+}
+
+export const API_BASE = resolveApiBase();
 
 export interface ConvertResult {
   markdown: string;

@@ -1,13 +1,12 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { resolveApiKey } from "../config.js";
-import { convertPdf } from "../api.js";
-import { AuthError } from "../errors.js";
+import { convertPdf, type ConvertResult } from "../api.js";
+import { AuthError, FileNotFoundError, InvalidArgsError } from "../errors.js";
+import type { Renderer } from "../ui/renderers/types.js";
 
 export interface ConvertCmdOptions {
   output?: string;
-  json?: boolean;
-  silent?: boolean;
 }
 
 function isDirectoryTarget(target: string): boolean {
@@ -34,24 +33,47 @@ function deriveMdName(input: string): string {
   return `${base}.md`;
 }
 
+/**
+ * Convert PDFs to Markdown.
+ *
+ * Output contract (per renderer):
+ *   - JsonRenderer:   emits `{"type":"result","data":<ConvertResult>}` per file on stdout.
+ *                     Multi-file input → JSONL (one object per line).
+ *   - RawRenderer:    emits the markdown string only, no envelope, no newline added.
+ *   - SilentRenderer: writes markdown to stdout only when no `--output` file is set.
+ *                     With `--output`, writes the file and emits nothing to stdout
+ *                     (matches v2.0.3 silent behavior).
+ *   - ClackRenderer:  progress line per file, success box at end with quota remaining.
+ *
+ * The `--output` flag routes the MARKDOWN PAYLOAD to a file on disk REGARDLESS
+ * of renderer. Under --json, the JSON envelope still goes to stdout AND the
+ * markdown is also written to the file. Agents can use both: parse the JSON
+ * envelope from stdout, and reference the file on disk.
+ */
 export async function convertCommand(
   inputs: string[],
   opts: ConvertCmdOptions,
+  renderer: Renderer,
 ): Promise<void> {
   const key = resolveApiKey();
   if (!key) {
-    throw new AuthError("Not authenticated. Run `blazedocs login` or set BLAZEDOCS_API_KEY.");
+    throw new AuthError();
   }
 
   if (inputs.length === 0) {
-    throw new Error("No input files specified. Example: blazedocs convert file.pdf");
+    throw new InvalidArgsError(
+      "No input files specified.",
+      "Example: blazedocs convert file.pdf",
+    );
   }
 
+  // Validate local files up-front (regression: v2.0.1 fix — don't print
+  // "Converting..." before discovering a file is missing).
   for (const input of inputs) {
     if (input.startsWith("http://") || input.startsWith("https://")) continue;
     const resolved = path.resolve(input);
     if (!fs.existsSync(resolved)) {
-      throw new Error(`File not found: ${resolved}`);
+      throw new FileNotFoundError(resolved);
     }
   }
 
@@ -60,7 +82,10 @@ export async function convertCommand(
   const multipleInputs = inputs.length > 1;
 
   if (multipleInputs && hasOutput && !outputIsDir) {
-    throw new Error("Multiple inputs require --output to be a directory (pass a trailing slash, e.g. --output results/).");
+    throw new InvalidArgsError(
+      "Multiple inputs require --output to be a directory.",
+      "Pass a trailing slash, e.g. --output results/.",
+    );
   }
 
   if (opts.output && outputIsDir) {
@@ -68,43 +93,21 @@ export async function convertCommand(
   }
 
   for (const input of inputs) {
-    if (!opts.silent && !opts.json) {
-      process.stderr.write(`Converting ${input}...\n`);
-    }
-    const result = await convertPdf(input, { apiKey: key });
+    renderer.progress(`Converting ${input}...`);
+    const result: ConvertResult = await convertPdf(input, { apiKey: key });
 
-    if (opts.json) {
-      process.stdout.write(JSON.stringify(result, null, 2) + "\n");
-      continue;
-    }
-
-    if (!opts.output) {
-      safeStdoutWrite(result.markdown);
-      if (!result.markdown.endsWith("\n")) safeStdoutWrite("\n");
-      continue;
+    // Write to disk if --output was specified.
+    let writtenPath: string | undefined;
+    if (opts.output) {
+      const target = outputIsDir ? path.join(opts.output, deriveMdName(input)) : opts.output;
+      const payload = result.markdown.endsWith("\n") ? result.markdown : result.markdown + "\n";
+      fs.writeFileSync(target, payload);
+      writtenPath = target;
     }
 
-    let target: string;
-    if (outputIsDir) {
-      target = path.join(opts.output, deriveMdName(input));
-    } else {
-      target = opts.output;
-    }
-    const payload = result.markdown.endsWith("\n") ? result.markdown : result.markdown + "\n";
-    fs.writeFileSync(target, payload);
-    if (!opts.silent) {
-      process.stderr.write(
-        `Wrote ${target} (${result.page_count} pages, ${result.usage.pages_remaining} pages remaining)\n`,
-      );
-    }
-  }
-}
-
-function safeStdoutWrite(data: string): void {
-  try {
-    process.stdout.write(data);
-  } catch (e) {
-    // Swallow EPIPE (|  head) silently.
-    if ((e as NodeJS.ErrnoException).code !== "EPIPE") throw e;
+    // Build the payload the renderer receives. For convert, this is the full
+    // ConvertResult plus an optional `written_to` field when --output wrote a file.
+    const payload = writtenPath ? { ...result, written_to: writtenPath } : result;
+    renderer.success(payload);
   }
 }

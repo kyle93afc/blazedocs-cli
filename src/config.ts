@@ -4,6 +4,9 @@ import * as os from "os";
 
 export interface BlazeDocsConfig {
   apiKey?: string;
+  /** ISO-8601 timestamp of first login. Written once by login, used by v3.1's
+   *  update-check cadence logic. Read-modify-write preserves unknown fields. */
+  installedAt?: string;
 }
 
 export function configDir(): string {
@@ -31,9 +34,21 @@ export function saveConfig(config: BlazeDocsConfig): void {
     try { fs.chmodSync(dir, 0o700); } catch { /* best effort */ }
   }
   const file = configPath();
-  fs.writeFileSync(file, JSON.stringify(config, null, 2), { mode: 0o600 });
-  if (process.platform !== "win32") {
-    try { fs.chmodSync(file, 0o600); } catch { /* best effort */ }
+  // Atomic write: tmpfile → chmod → rename. Prevents two concurrent `login`
+  // invocations (or a login-in-flight during a read) from tearing the file.
+  // Pattern matches src/ui/upgrade-check.ts:writeCache for consistency.
+  const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(config, null, 2), { mode: 0o600 });
+    if (process.platform !== "win32") {
+      try { fs.chmodSync(tmp, 0o600); } catch { /* best effort */ }
+    }
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    // If rename failed, clean up the orphaned tmp file so ~/.blazedocs/ doesn't
+    // accumulate cruft across failed writes.
+    try { fs.unlinkSync(tmp); } catch { /* best effort */ }
+    throw e;
   }
 }
 
