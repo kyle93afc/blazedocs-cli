@@ -15,6 +15,7 @@
 import type { BlazeDocsError } from "../../errors.js";
 import { redactApiKeys } from "../../errors.js";
 import { c } from "../colors.js";
+import { quotaBar } from "../quota-bar.js";
 import type { Renderer, ResultMeta, UpgradeInfo } from "./types.js";
 import { safeWrite } from "./safe-write.js";
 
@@ -74,6 +75,20 @@ export class ClackRenderer implements Renderer {
             `${c.success("✓")} ${c.bold(String(obj.file_name))} (${pages} pages${quotaHint})\n`,
           );
         }
+        return;
+      }
+
+      if (
+        typeof obj.pages_used === "number" &&
+        typeof obj.pages_limit === "number" &&
+        typeof obj.pages_remaining === "number"
+      ) {
+        const tier = typeof obj.tier === "string" ? obj.tier : "unknown";
+        const email = typeof obj.email === "string" ? obj.email : undefined;
+        if (email) safeWrite(this.stderr,`${c.success("✓")} Signed in as ${c.bold(email)}\n`);
+        safeWrite(this.stderr,`${c.bold(tier)} plan · ${obj.pages_used}/${obj.pages_limit} pages used\n`);
+        safeWrite(this.stderr,`${quotaBar(obj.pages_used, obj.pages_limit)}\n`);
+        safeWrite(this.stderr,`${obj.pages_remaining} pages remaining this month\n`);
         return;
       }
 

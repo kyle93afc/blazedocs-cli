@@ -18,7 +18,16 @@
 import { Command, Option } from "commander";
 import type { Renderer } from "../ui/renderers/types.js";
 
-const VERSION = "3.0.0-beta.1";
+const VERSION = "3.0.0-beta.2";
+const KNOWN_COMMANDS = new Set([
+  "login",
+  "logout",
+  "whoami",
+  "usage",
+  "doctor",
+  "skills",
+  "convert",
+]);
 
 interface GlobalFlags {
   json?: boolean;
@@ -43,7 +52,14 @@ program
   .addOption(new Option("--silent", "Suppress progress output. Matches v2.0.3 CI behavior."))
   .addOption(
     new Option("--yes", "Accept all interactive defaults non-interactively. Agents/CI set this."),
-  );
+  )
+  .action(async () => {
+    const global = program.opts<GlobalFlags>();
+    await run(global, async (ctx) => {
+      const { interactiveCommand } = await import("../commands/interactive.js");
+      await interactiveCommand({ version: VERSION, yes: global.yes }, ctx.renderer);
+    });
+  });
 
 program
   .command("login")
@@ -131,7 +147,7 @@ skillsCmd
 program
   .command("convert")
   .description("Convert one or more PDFs to Markdown")
-  .argument("<inputs...>", "Local PDF paths or http/https URLs")
+  .argument("[inputs...]", "Local PDF paths or http/https URLs")
   .option("-o, --output <path>", "Output file or directory (trailing slash = directory)")
   .action(async (inputs: string[], opts: { output?: string }) => {
     const global = program.opts<GlobalFlags>();
@@ -183,6 +199,8 @@ async function run(
   }
 }
 
+rejectUnknownRootCommand(process.argv);
+
 program.parseAsync(process.argv).catch(async (e) => {
   // Commander parse errors (unknown option, etc). Render structurally if --json.
   const global = program.opts<GlobalFlags>();
@@ -200,3 +218,11 @@ program.parseAsync(process.argv).catch(async (e) => {
     process.exit(1);
   }
 });
+
+function rejectUnknownRootCommand(argv: string[]): void {
+  const args = argv.slice(2);
+  const firstCommandLike = args.find((arg) => !arg.startsWith("-"));
+  if (!firstCommandLike || KNOWN_COMMANDS.has(firstCommandLike)) return;
+  process.stderr.write(`error: unknown command '${firstCommandLike}'\n`);
+  process.exit(1);
+}

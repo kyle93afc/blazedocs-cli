@@ -2,6 +2,22 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.2] — 2026-04-24
+
+### Added
+
+- **First-run human onboarding.** Running `blazedocs` in an interactive terminal now shows a branded welcome screen, prompts for an API key on first run, validates it, and then opens a small menu for convert/usage/login/doctor.
+- **Interactive `convert` flow.** `blazedocs convert` with no input now opens a PDF picker in TTY mode and asks where to write the Markdown. Non-TTY and explicit input paths remain pipe-safe.
+- **Clack password prompt.** `blazedocs login` now uses `@clack/prompts.password()` for masked API-key entry instead of the previous readline monkeypatch.
+- **TTY quota display.** `usage`, `whoami`, and login success now show a compact quota bar under the Clack renderer.
+- **Terminal-safe wordmark.** The welcome screen now renders a big ASCII BlazeDocs logo that keeps the v3 first-impression feel without Unicode block wrapping in desktop terminals.
+
+### Preserved
+
+- `--json`, `--raw`, `--silent`, and non-TTY behavior remain agent-safe.
+- `--version` / `--help` still avoid loading UI/API modules; the lazy-import guard remains in place.
+- `blazedocs init` remains killed and rejected as an unknown command.
+
 ## [3.0.0-beta.1] — 2026-04-24
 
 **Agent-first edition.** v3 reframes BlazeDocs CLI as a surface for AI agents first, humans second. Inspired by `microsoft/playwright-cli` and `vercel-labs/agent-browser`, driven by Sequoia's ["Services as Software" thesis](https://sequoiacap.com/article/services-the-new-software/). Every invocation is now structured, deterministic, and pipe-friendly.
@@ -38,7 +54,7 @@ All notable changes to the `blazedocs` CLI are documented here. This project fol
 - **`BLAZEDOCS_SKIP_UPDATE_CHECK=1`** bypasses the registry probe (CI, air-gapped).
 - **`BLAZEDOCS_ASCII_LOGO=1`** forces ASCII fallback over Unicode block characters.
 
-### Deferred to 3.0.0-beta.2
+### Deferred
 
 - `blazedocs skills add <target-dir>` — writes a shell-out stub pointing at `skills get core` (codex outside-voice review flagged the security surface; beta.1 ships without it).
 - Full `@clack/prompts` TTY polish: ANSI banner, boxed welcome/usage/whoami, interactive no-args menu, `password()` prompt for login. Renderer interface stays stable; polish upgrades in place.
@@ -58,7 +74,7 @@ Pack size target: ≤250KB (was ~40KB in v2.0.3; ~146KB of deps added). CI shoul
 
 ### Test coverage
 
-20 tests in v2.0.3 → **73 tests in 3.0.0-beta.1**. New suites:
+20 tests in v2.0.3 → **80 tests in 3.0.0-beta.2**. New suites:
 - `renderers.test.ts` — 21 unit tests for json/silent/raw/clack with fake streams.
 - `upgrade-check.test.ts` — 8 tests (mocked fetch, cache TTL, corrupt-file recovery).
 - `json-stream-contract.test.ts` — 5 E2E tests proving stdout/stderr stream separation.

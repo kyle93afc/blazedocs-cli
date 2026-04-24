@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { resolveApiKey } from "../config.js";
 import { convertPdf, type ConvertResult } from "../api.js";
 import { AuthError, FileNotFoundError, InvalidArgsError } from "../errors.js";
+import { isInteractive } from "../ui/env.js";
 import type { Renderer } from "../ui/renderers/types.js";
 
 export interface ConvertCmdOptions {
@@ -55,16 +56,24 @@ export async function convertCommand(
   opts: ConvertCmdOptions,
   renderer: Renderer,
 ): Promise<void> {
+  if (inputs.length === 0) {
+    if (!isInteractive()) {
+      throw new InvalidArgsError(
+        "No input files specified.",
+        "Example: blazedocs convert file.pdf",
+      );
+    }
+    const { promptPdfInput, promptOutput } = await import("../ui/prompts.js");
+    const input = await promptPdfInput();
+    inputs = [input];
+    if (!opts.output) {
+      opts = { ...opts, output: await promptOutput(input) };
+    }
+  }
+
   const key = resolveApiKey();
   if (!key) {
     throw new AuthError();
-  }
-
-  if (inputs.length === 0) {
-    throw new InvalidArgsError(
-      "No input files specified.",
-      "Example: blazedocs convert file.pdf",
-    );
   }
 
   // Validate local files up-front (regression: v2.0.1 fix — don't print

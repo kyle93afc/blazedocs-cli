@@ -1,12 +1,12 @@
 /**
  * `blazedocs skills` subcommands.
  *
- * v3.0-beta.1 ships `get` and `list` only. `add <target-dir>` is deferred
- * to 3.0.0-beta.2 per the codex outside-voice review: writing into agent
+ * v3.0 beta ships `get` and `list` only. `add <target-dir>` is deferred
+ * per the codex outside-voice review: writing into agent
  * skill directories (Claude Code, Cursor, Codex) is a bigger security
  * surface than the rest of v3, and beta 1 ships a smaller attack surface.
  *
- * Beta 1 users who want to install the skill manually:
+ * Beta users who want to install the skill manually:
  *   blazedocs skills get core > ~/.claude/skills/blazedocs/SKILL.md
  */
 
@@ -26,7 +26,7 @@ export async function skillsGetCommand(name: string, renderer: Renderer): Promis
   renderer.success({
     name,
     content,
-    version: process.env.npm_package_version ?? "3.0.0-beta.1",
+    version: process.env.npm_package_version ?? "3.0.0-beta.2",
   });
 }
 
