@@ -4,6 +4,9 @@ import * as os from "os";
 
 export interface BlazeDocsConfig {
   apiKey?: string;
+  /** ISO-8601 timestamp of first login. Written once by login, used by v3.1's
+   *  update-check cadence logic. Read-modify-write preserves unknown fields. */
+  installedAt?: string;
 }
 
 export function configDir(): string {

@@ -51,9 +51,9 @@ program
   .option("--api-key-stdin", "Read the API key from stdin (preferred for automation)")
   .action(async (opts: { apiKeyStdin?: boolean }) => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (_ctx) => {
+    await run(global, async (ctx) => {
       const { loginCommand } = await import("../commands/login.js");
-      await loginCommand({ apiKeyStdin: opts.apiKeyStdin });
+      await loginCommand({ apiKeyStdin: opts.apiKeyStdin }, ctx.renderer);
     });
   });
 
@@ -62,9 +62,9 @@ program
   .description("Clear stored credentials")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (_ctx) => {
+    await run(global, async (ctx) => {
       const { logoutCommand } = await import("../commands/logout.js");
-      logoutCommand();
+      logoutCommand(ctx.renderer);
     });
   });
 
@@ -73,9 +73,9 @@ program
   .description("Show the authenticated user and plan")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (_ctx) => {
+    await run(global, async (ctx) => {
       const { whoamiCommand } = await import("../commands/whoami.js");
-      await whoamiCommand();
+      await whoamiCommand(ctx.renderer);
     });
   });
 
@@ -84,9 +84,9 @@ program
   .description("Show current-month page usage and quota")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (_ctx) => {
+    await run(global, async (ctx) => {
       const { usageCommand } = await import("../commands/usage.js");
-      await usageCommand({ json: global.json });
+      await usageCommand(ctx.renderer);
     });
   });
 

@@ -36,17 +36,38 @@ export class RawRenderer implements Renderer {
   }
 
   success(payload: unknown, _meta?: ResultMeta): void {
-    // For convert: emit just the markdown.
-    // For other commands that might use --raw in the future (usage, whoami),
-    // emit the primary string field if present, otherwise a terse form.
+    // Raw mode: the single most pipe-useful field for each payload shape.
     if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
+
+      // Convert: markdown only, no newline added.
       if (typeof obj.markdown === "string") {
         this.stdout.write(obj.markdown);
         return;
       }
-      if (typeof obj.value === "string") {
-        this.stdout.write(obj.value + "\n");
+
+      // Whoami: email if present, otherwise tier.
+      if ("email" in obj && typeof obj.tier === "string") {
+        const email = obj.email;
+        this.stdout.write(`${typeof email === "string" ? email : obj.tier}\n`);
+        return;
+      }
+
+      // Usage: `used/limit` (pipe-friendly arithmetic check).
+      if (typeof obj.pages_used === "number" && typeof obj.pages_limit === "number") {
+        this.stdout.write(`${obj.pages_used}/${obj.pages_limit}\n`);
+        return;
+      }
+
+      // Generic: message string.
+      if (typeof obj.message === "string") {
+        this.stdout.write(`${obj.message}\n`);
+        return;
+      }
+
+      // Boolean ok shape.
+      if (typeof obj.ok === "boolean") {
+        this.stdout.write(`${obj.ok ? "ok" : "fail"}\n`);
         return;
       }
     }
@@ -54,7 +75,6 @@ export class RawRenderer implements Renderer {
       this.stdout.write(payload);
       return;
     }
-    // Last resort: whatever it is, serialize compactly.
     this.stdout.write(String(payload));
   }
 

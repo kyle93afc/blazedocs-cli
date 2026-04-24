@@ -37,20 +37,60 @@ export class SilentRenderer implements Renderer {
   }
 
   success(payload: unknown, _meta?: ResultMeta): void {
-    // Back-compat: v2.0.3 `convert foo.pdf | cat` streamed markdown to stdout.
-    // Preserve that pipe contract ONLY when no file was written. When `-o`
-    // wrote to disk, SilentRenderer stays silent (stdout empty) — matches v2.0.3.
     if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
       const hasWrittenTo = typeof obj.written_to === "string";
+
+      // Convert payload: markdown to stdout unless a file was written.
       const md = obj.markdown;
-      if (typeof md === "string" && !hasWrittenTo) {
-        this.stdout.write(md);
-        if (!md.endsWith("\n")) this.stdout.write("\n");
+      if (typeof md === "string") {
+        if (!hasWrittenTo) {
+          this.stdout.write(md);
+          if (!md.endsWith("\n")) this.stdout.write("\n");
+        }
+        return;
+      }
+
+      // Whoami payload: `email (tier plan, R/L pages remaining)` or tier fallback.
+      if (
+        "email" in obj &&
+        typeof obj.tier === "string" &&
+        typeof obj.pages_used === "number" &&
+        typeof obj.pages_limit === "number" &&
+        typeof obj.pages_remaining === "number"
+      ) {
+        const email = obj.email;
+        if (typeof email === "string") {
+          this.stdout.write(
+            `${email} (${obj.tier} plan, ${obj.pages_remaining}/${obj.pages_limit} pages remaining)\n`,
+          );
+        } else {
+          this.stdout.write(
+            `${obj.tier} plan — ${obj.pages_used}/${obj.pages_limit} pages used, ${obj.pages_remaining} remaining\n`,
+          );
+        }
+        return;
+      }
+
+      // Usage payload: v2.0.3-parity 4-line key/value dump.
+      if (
+        typeof obj.pages_used === "number" &&
+        typeof obj.pages_limit === "number" &&
+        typeof obj.pages_remaining === "number" &&
+        typeof obj.tier === "string"
+      ) {
+        this.stdout.write(
+          `Pages used:      ${obj.pages_used}\nPages limit:     ${obj.pages_limit}\nPages remaining: ${obj.pages_remaining}\nTier:            ${obj.tier}\n`,
+        );
+        return;
+      }
+
+      // Generic payload with a human-readable message (logout, login).
+      if (typeof obj.message === "string") {
+        this.stdout.write(`${obj.message}\n`);
         return;
       }
     }
-    // Otherwise silent renderer is a no-op on success.
   }
 
   error(err: BlazeDocsError): void {
