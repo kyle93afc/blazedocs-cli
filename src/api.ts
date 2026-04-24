@@ -158,7 +158,7 @@ function parseErrorBody(body: ApiErrorBody): { code?: string; message: string; u
   return { code, message, upgradeUrl };
 }
 
-function throwForStatus(status: number, body: ApiErrorBody): never {
+function throwForStatus(status: number, body: ApiErrorBody, responseBody?: string): never {
   const { code, message, upgradeUrl } = parseErrorBody(body);
   if (status === 401 || status === 403) {
     throw new AuthError(message);
@@ -168,30 +168,38 @@ function throwForStatus(status: number, body: ApiErrorBody): never {
       message === "API error" || /^429\b/.test(message)
         ? "Rate limit or quota exceeded (429 Too Many Requests). Retry with a short delay, or check your BlazeDocs quota."
         : message;
-    throw new QuotaExceededError(detail, upgradeUrl);
+    throw new QuotaExceededError(detail, upgradeUrl, responseBody);
   }
   if (status === 413) {
     const detail =
       message === "API error" || /^413\b/.test(message)
         ? "File too large (413 Request Entity Too Large). Check your plan's upload limit or try a smaller PDF."
         : `File too large: ${message}`;
-    throw new ApiError(status, detail, code ?? "REQUEST_ENTITY_TOO_LARGE");
+    throw new ApiError(
+      status,
+      detail,
+      code ?? "REQUEST_ENTITY_TOO_LARGE",
+      "Retry only if this was a transient gateway limit. Prefer storage upload or a smaller PDF.",
+      responseBody,
+    );
   }
   const detail = message === "API error" ? `${status} API error` : message;
-  throw new ApiError(status, detail, code);
+  throw new ApiError(status, detail, code, undefined, responseBody);
 }
 
-async function readJsonSafe(response: Response): Promise<ApiErrorBody> {
+async function readJsonSafe(response: Response): Promise<ApiErrorBody & { __raw?: string }> {
+  const raw = await response.text();
   try {
-    return (await response.json()) as ApiErrorBody;
+    return { ...(JSON.parse(raw) as ApiErrorBody), __raw: raw };
   } catch {
-    return { message: `${response.status} ${response.statusText}` };
+    return { message: raw || `${response.status} ${response.statusText}`, __raw: raw };
   }
 }
 
 export interface ConvertOptions {
   apiKey: string;
   timeoutMs?: number;
+  idempotencyKey?: string;
   /** Optional fetch override for testing. */
   fetchImpl?: typeof fetch;
 }
@@ -203,19 +211,32 @@ function fileBytesFromBuffer(fileBuffer: Buffer): ArrayBuffer {
   ) as ArrayBuffer;
 }
 
+export function stripUnresolvedImageRefs(markdown: string): string {
+  return markdown
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*!\[[^\]]*]\((?:\.\/)?img-\d+\.(?:jpe?g|png|webp|gif)\)\s*$/i.test(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+}
+
 async function convertPdfMultipart(
   fileBuffer: Buffer,
   fileName: string,
   options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+  idempotencyKey?: string,
 ): Promise<Response> {
   const formData = new FormData();
   formData.append("file", new File([fileBytesFromBuffer(fileBuffer)], fileName, { type: "application/pdf" }));
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${options.apiKey}`,
+  };
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+
   return options.fetchImpl(`${API_BASE}/convert`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${options.apiKey}`,
-    },
+    headers,
     body: formData,
     signal: AbortSignal.timeout(options.timeoutMs),
   });
@@ -225,6 +246,7 @@ async function convertPdfViaStorage(
   fileBuffer: Buffer,
   fileName: string,
   options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+  idempotencyKey?: string,
 ): Promise<Response | null> {
   const uploadUrlResponse = await options.fetchImpl(`${API_BASE}/upload-url`, {
     method: "POST",
@@ -242,8 +264,9 @@ async function convertPdfViaStorage(
     data?: { upload_url?: string; uploadUrl?: string };
     upload_url?: string;
     uploadUrl?: string;
+    __raw?: string;
   };
-  if (!uploadUrlResponse.ok) throwForStatus(uploadUrlResponse.status, uploadUrlBody);
+  if (!uploadUrlResponse.ok) throwForStatus(uploadUrlResponse.status, uploadUrlBody, uploadUrlBody.__raw);
 
   const uploadUrl =
     uploadUrlBody.data?.upload_url ||
@@ -267,20 +290,24 @@ async function convertPdfViaStorage(
   const storageBody = (await readJsonSafe(uploadResponse)) as ApiErrorBody & {
     storageId?: string;
     storage_id?: string;
+    __raw?: string;
   };
-  if (!uploadResponse.ok) throwForStatus(uploadResponse.status, storageBody);
+  if (!uploadResponse.ok) throwForStatus(uploadResponse.status, storageBody, storageBody.__raw);
 
   const storageId = storageBody.storageId || storageBody.storage_id;
   if (!storageId) {
     throw new ApiError(uploadResponse.status, "Unexpected upload response shape: missing storageId");
   }
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${options.apiKey}`,
+    "Content-Type": "application/json",
+  };
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+
   return options.fetchImpl(`${API_BASE}/convert`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${options.apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       storage_id: storageId,
       file_name: fileName,
@@ -295,6 +322,7 @@ export async function convertPdf(
   options: ConvertOptions,
 ): Promise<ConvertResult> {
   const { apiKey, timeoutMs = 300_000, fetchImpl = fetch } = options;
+  const idempotencyKey = options.idempotencyKey;
   let fileName: string;
   let fileBuffer: Buffer;
 
@@ -324,8 +352,8 @@ export async function convertPdf(
   let response: Response;
   try {
     response =
-      (await convertPdfViaStorage(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl })) ??
-      (await convertPdfMultipart(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }));
+      (await convertPdfViaStorage(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }, idempotencyKey)) ??
+      (await convertPdfMultipart(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }, idempotencyKey));
   } catch (e) {
     if (e instanceof AuthError || e instanceof QuotaExceededError || e instanceof ApiError) {
       throw e;
@@ -336,9 +364,10 @@ export async function convertPdf(
   const parsed = (await readJsonSafe(response)) as ApiErrorBody & {
     data?: Omit<ConvertResult, "usage">;
     usage?: ConvertResult["usage"];
+    __raw?: string;
   };
 
-  if (!response.ok) throwForStatus(response.status, parsed);
+  if (!response.ok) throwForStatus(response.status, parsed, parsed.__raw);
 
   if (!parsed.data || typeof parsed.data.markdown !== "string") {
     throw new ApiError(
@@ -348,7 +377,7 @@ export async function convertPdf(
   }
 
   return {
-    markdown: parsed.data.markdown,
+    markdown: stripUnresolvedImageRefs(parsed.data.markdown),
     page_count: parsed.data.page_count,
     token_count: parsed.data.token_count,
     processing_time_ms: parsed.data.processing_time_ms,
@@ -371,7 +400,7 @@ export async function getUsage(
     throw new NetworkError(`Network error calling API: ${(e as Error).message}`);
   }
   const parsed = await readJsonSafe(response);
-  if (!response.ok) throwForStatus(response.status, parsed);
+  if (!response.ok) throwForStatus(response.status, parsed, parsed.__raw);
   return parsed as UsageSnapshot;
 }
 

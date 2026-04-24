@@ -22,19 +22,27 @@ const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.js");
 let server: http.Server;
 let serverUrl: string;
 let nextResponse: { status: number; body: Record<string, unknown> };
+let requestLog: Array<{ url: string; headers: http.IncomingHttpHeaders }>;
 
-beforeAll(async () => {
-  server = http.createServer((req, res) => {
+function attachDefaultRequestHandler(): void {
+  server.removeAllListeners("request");
+  server.on("request", (req, res) => {
     let _chunks = "";
     req.on("data", (c) => {
       _chunks += c.toString("utf-8");
     });
     req.on("end", () => {
+      requestLog.push({ url: req.url ?? "", headers: req.headers });
       res.setHeader("connection", "close");
       res.writeHead(nextResponse.status, { "content-type": "application/json" });
       res.end(JSON.stringify(nextResponse.body));
     });
   });
+}
+
+beforeAll(async () => {
+  server = http.createServer();
+  attachDefaultRequestHandler();
   server.keepAliveTimeout = 1;
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const addr = server.address();
@@ -51,6 +59,8 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  requestLog = [];
+  attachDefaultRequestHandler();
   nextResponse = {
     status: 200,
     body: {
@@ -247,14 +257,96 @@ describe("convert regression (v2.0.3 parity)", () => {
     const pdf = makeFakePdf();
     nextResponse = {
       status: 413,
-      body: {},
+      body: { error: { code: "FUNCTION_PAYLOAD_TOO_LARGE", message: "Vercel request body limit exceeded" } },
     };
     const res = await runCli(["--json", "convert", pdf], testEnv());
     expect(res.exitCode).toBe(1);
     expect(res.stdout).toBe("");
     const err = JSON.parse(res.stderr.trim().split("\n")[0]);
     expect(err.error.code).toBe("API_ERROR");
-    expect(err.error.message).toMatch(/file too large|413/i);
+    expect(err.error.message).toMatch(/Vercel request body limit exceeded/);
+    expect(err.error.hint).toMatch(/retry|smaller PDF|storage upload/i);
+    expect(err.error.api_response).toMatch(/FUNCTION_PAYLOAD_TOO_LARGE/);
+  });
+
+  it("convert --idempotency-key forwards safe retry key to the API", async () => {
+    const pdf = makeFakePdf();
+    const res = await runCli(["--json", "convert", pdf, "--idempotency-key", "agent-job-42"], testEnv());
+    expect(res.exitCode).toBe(0);
+    const convertRequest = requestLog.find((entry) => entry.url.endsWith("/convert"));
+    expect(convertRequest?.headers["idempotency-key"]).toBe("agent-job-42");
+  });
+
+  it("convert --batch continues after errors and writes a summary JSON", async () => {
+    const pdf1 = makeFakePdf();
+    const pdf2 = makeFakePdf();
+    const summary = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "bd-summary-")), "summary.json");
+    let convertCount = 0;
+    server.removeAllListeners("request");
+    server.on("request", (req, res) => {
+      req.resume();
+      req.on("end", () => {
+        requestLog.push({ url: req.url ?? "", headers: req.headers });
+        const isConvert = (req.url ?? "").endsWith("/convert");
+        if (isConvert) convertCount += 1;
+        if (isConvert && convertCount === 1) {
+          res.writeHead(429, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: { code: "QUOTA_EXCEEDED", message: "slow down" } }));
+          return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(nextResponse.body));
+      });
+    });
+
+    const res = await runCli([
+      "--json",
+      "convert",
+      "--batch",
+      pdf1,
+      pdf2,
+      "--concurrency",
+      "1",
+      "--on-error",
+      "continue",
+      "--summary",
+      summary,
+    ], testEnv());
+
+    expect(res.exitCode).toBe(0);
+    expect(fs.existsSync(summary)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(summary, "utf-8"));
+    expect(parsed).toMatchObject({ total: 2, succeeded: 1, failed: 1 });
+    expect(parsed.results[0].status).toBe("failed");
+    expect(parsed.results[1].status).toBe("succeeded");
+  });
+
+  it("convert --batch abort writes a summary JSON before exiting non-zero", async () => {
+    const pdf1 = makeFakePdf();
+    const pdf2 = makeFakePdf();
+    const summary = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "bd-summary-")), "summary.json");
+    nextResponse = {
+      status: 429,
+      body: { error: { code: "QUOTA_EXCEEDED", message: "slow down" } },
+    };
+
+    const res = await runCli([
+      "--json",
+      "convert",
+      "--batch",
+      pdf1,
+      pdf2,
+      "--concurrency",
+      "1",
+      "--summary",
+      summary,
+    ], testEnv());
+
+    expect(res.exitCode).toBe(2);
+    expect(fs.existsSync(summary)).toBe(true);
+    const parsed = JSON.parse(fs.readFileSync(summary, "utf-8"));
+    expect(parsed).toMatchObject({ total: 2, succeeded: 0, failed: 1 });
+    expect(parsed.results[0].status).toBe("failed");
   });
 
   it("burst API failures never exit with empty stderr", async () => {

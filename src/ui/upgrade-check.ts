@@ -18,11 +18,13 @@ import * as semver from "semver";
 import type { UpgradeInfo } from "./renderers/types.js";
 
 const PACKAGE_NAME = "blazedocs";
-const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
+const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}`;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const FETCH_TIMEOUT_MS = 500;
+const CACHE_SCHEMA_VERSION = 2;
 
 interface CacheShape {
+  schema_version: number;
   latest: string;
   checked_at: number;
 }
@@ -36,6 +38,9 @@ function readCache(): CacheShape | null {
   try {
     const raw = fs.readFileSync(p, "utf-8");
     const parsed = JSON.parse(raw) as CacheShape;
+    if (parsed.schema_version !== CACHE_SCHEMA_VERSION) {
+      return null;
+    }
     if (typeof parsed.latest !== "string" || typeof parsed.checked_at !== "number") {
       return null;
     }
@@ -60,7 +65,7 @@ function writeCache(latest: string): void {
   try {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     const tmpPath = `${p}.tmp.${process.pid}`;
-    fs.writeFileSync(tmpPath, JSON.stringify({ latest, checked_at: Date.now() }));
+    fs.writeFileSync(tmpPath, JSON.stringify({ schema_version: CACHE_SCHEMA_VERSION, latest, checked_at: Date.now() }));
     fs.renameSync(tmpPath, p);
   } catch {
     /* best effort — cache write failure should not break anything */
@@ -74,6 +79,12 @@ function shouldSkip(): boolean {
   return false;
 }
 
+function pickHighestVersion(versions: string[]): string | null {
+  const valid = versions.filter((version) => semver.valid(version));
+  if (valid.length === 0) return null;
+  return valid.sort((a, b) => semver.rcompare(a, b))[0];
+}
+
 async function fetchLatest(): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -83,9 +94,21 @@ async function fetchLatest(): Promise<string | null> {
       headers: { accept: "application/json" },
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as { version?: string };
-    if (typeof body.version === "string" && semver.valid(body.version)) {
-      return body.version;
+    const body = (await res.json()) as {
+      version?: string;
+      "dist-tags"?: Record<string, string>;
+      versions?: Record<string, unknown>;
+    };
+
+    const candidates = [
+      body.version,
+      ...Object.values(body["dist-tags"] ?? {}),
+      ...Object.keys(body.versions ?? {}),
+    ].filter((version): version is string => typeof version === "string");
+
+    const highest = pickHighestVersion(candidates);
+    if (highest) {
+      return highest;
     }
     return null;
   } catch {
@@ -134,6 +157,6 @@ export async function checkForUpgrade(currentVersion: string): Promise<UpgradeIn
     available,
     current: currentVersion,
     latest,
-    install_cmd: available ? `npm i -g ${PACKAGE_NAME}@latest` : undefined,
+    install_cmd: available ? `npm i -g ${PACKAGE_NAME}@${latest}` : undefined,
   };
 }

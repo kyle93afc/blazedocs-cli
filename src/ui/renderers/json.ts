@@ -70,6 +70,9 @@ export class JsonRenderer implements Renderer {
       hint?: string;
       exit_code: number;
       upgrade_url?: string;
+      api_status?: number;
+      api_code?: string;
+      api_response?: string;
     } = {
       code: err.code,
       message: redactApiKeys(err.message),
@@ -78,6 +81,10 @@ export class JsonRenderer implements Renderer {
     if (err.hint) body.hint = redactApiKeys(err.hint);
     const anyErr = err as unknown as { upgradeUrl?: string };
     if (typeof anyErr.upgradeUrl === "string") body.upgrade_url = anyErr.upgradeUrl;
+    const apiErr = err as unknown as { status?: number; apiCode?: string; apiResponse?: string };
+    if (typeof apiErr.status === "number") body.api_status = apiErr.status;
+    if (typeof apiErr.apiCode === "string") body.api_code = apiErr.apiCode;
+    if (typeof apiErr.apiResponse === "string") body.api_response = redactApiKeys(apiErr.apiResponse);
     this.writeLine(this.stderr, { error: body });
   }
 

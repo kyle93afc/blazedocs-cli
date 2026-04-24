@@ -101,6 +101,10 @@ export class RawRenderer implements Renderer {
 
   error(err: BlazeDocsError): void {
     safeWrite(this.stderr, `[${err.code}] ${redactApiKeys(err.message)}\n`);
+    const apiErr = err as unknown as { apiResponse?: string };
+    if (typeof apiErr.apiResponse === "string") {
+      safeWrite(this.stderr, redactApiKeys(apiErr.apiResponse) + "\n");
+    }
   }
 
   note(_msg: string): void {

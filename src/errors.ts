@@ -44,7 +44,8 @@ export class AuthError extends BlazeDocsError {
 
 export class QuotaExceededError extends BlazeDocsError {
   upgradeUrl?: string;
-  constructor(message = "Monthly page limit reached.", upgradeUrl?: string) {
+  apiResponse?: string;
+  constructor(message = "Monthly page limit reached.", upgradeUrl?: string, apiResponse?: string) {
     super(
       ERROR_CODES.QUOTA_EXCEEDED,
       message,
@@ -52,6 +53,7 @@ export class QuotaExceededError extends BlazeDocsError {
     );
     this.name = "QuotaExceededError";
     this.upgradeUrl = upgradeUrl;
+    this.apiResponse = apiResponse;
   }
 }
 
@@ -69,11 +71,13 @@ export class NetworkError extends BlazeDocsError {
 export class ApiError extends BlazeDocsError {
   status: number;
   apiCode?: string;
-  constructor(status: number, message: string, apiCode?: string) {
-    super(ERROR_CODES.API_ERROR, message);
+  apiResponse?: string;
+  constructor(status: number, message: string, apiCode?: string, hint?: string, apiResponse?: string) {
+    super(ERROR_CODES.API_ERROR, message, hint);
     this.name = "ApiError";
     this.status = status;
     this.apiCode = apiCode;
+    this.apiResponse = apiResponse;
   }
 }
 

@@ -70,10 +70,12 @@ function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 async function runCli(
   args: string[],
   env: NodeJS.ProcessEnv,
+  cwd = process.cwd(),
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
     const { stdout, stderr } = await execFileAsync(process.execPath, [BIN, ...args], {
       env,
+      cwd,
       encoding: "utf8",
       timeout: 15000,
       maxBuffer: 10 * 1024 * 1024,
@@ -125,16 +127,50 @@ describe("skills", () => {
     expect(parsed.data.content).toContain("BlazeDocs");
   });
 
-  it("skills install writes to the skill.sh-compatible default path", async () => {
+  it("skills install writes to an existing project .agents/skills path by default", async () => {
     const env = testEnv();
-    const home = env.HOME!;
-    const res = await runCli(["--json", "skills", "install"], env);
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), "bd-skill-project-"));
+    fs.mkdirSync(path.join(project, ".agents", "skills", "existing"), { recursive: true });
+    fs.writeFileSync(path.join(project, ".agents", "skills", "existing", "SKILL.md"), "---\nname: existing\n---\n");
+
+    const res = await runCli(["--json", "skills", "install"], env, project);
     expect(res.exitCode).toBe(0);
     expect(res.stderr).toBe("");
     const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
     expect(parsed.data.ok).toBe(true);
-    expect(parsed.data.path).toBe(path.join(home, ".agents", "skills", "blazedocs", "SKILL.md"));
+    expect(fs.realpathSync(parsed.data.path)).toBe(
+      fs.realpathSync(path.join(project, ".agents", "skills", "blazedocs", "SKILL.md")),
+    );
     expect(fs.readFileSync(parsed.data.path, "utf8")).toContain("name: blazedocs");
+  });
+
+  it("skills install falls back to an existing user .claude/skills path when no project skills exist", async () => {
+    const env = testEnv();
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), "bd-skill-project-"));
+    const homeClaude = path.join(env.HOME!, ".claude", "skills");
+    fs.mkdirSync(path.join(homeClaude, "existing"), { recursive: true });
+    fs.writeFileSync(path.join(homeClaude, "existing", "SKILL.md"), "---\nname: existing\n---\n");
+
+    const res = await runCli(["--json", "skills", "install"], env, project);
+    expect(res.exitCode).toBe(0);
+    const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
+    expect(parsed.data.path).toBe(path.join(homeClaude, "blazedocs", "SKILL.md"));
+  });
+
+  it("skills install prefers an empty project .agents/skills over populated user skills", async () => {
+    const env = testEnv();
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), "bd-skill-project-"));
+    fs.mkdirSync(path.join(project, ".agents", "skills"), { recursive: true });
+    const homeAgents = path.join(env.HOME!, ".agents", "skills");
+    fs.mkdirSync(path.join(homeAgents, "existing"), { recursive: true });
+    fs.writeFileSync(path.join(homeAgents, "existing", "SKILL.md"), "---\nname: existing\n---\n");
+
+    const res = await runCli(["--json", "skills", "install"], env, project);
+    expect(res.exitCode).toBe(0);
+    const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
+    expect(fs.realpathSync(parsed.data.path)).toBe(
+      fs.realpathSync(path.join(project, ".agents", "skills", "blazedocs", "SKILL.md")),
+    );
   });
 
   it("skills install --target-dir writes under a custom skill root", async () => {

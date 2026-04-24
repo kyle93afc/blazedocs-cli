@@ -122,6 +122,8 @@ blazedocs convert report.pdf -o report.md             # write to file
 blazedocs convert report.pdf --json                   # JSON envelope
 blazedocs convert report.pdf --raw                    # pure markdown, no envelope
 blazedocs convert a.pdf b.pdf c.pdf -o results/ --json  # JSONL, one per file
+blazedocs convert --batch *.pdf --concurrency 1 --on-error continue --summary summary.json --json
+blazedocs convert report.pdf --idempotency-key job-123 --json
 blazedocs convert https://example.com/paper.pdf       # URL input
 \`\`\`
 
@@ -143,6 +145,12 @@ Each result data shape:
 \`\`\`
 
 \`written_to\` is present only when \`-o\` wrote a file to disk.
+
+Batch mode writes a summary JSON:
+
+\`\`\`json
+{"total":2,"succeeded":1,"failed":1,"results":[{"input":"a.pdf","status":"failed","error":{"code":"QUOTA_EXCEEDED","message":"...","exit_code":2}},{"input":"b.pdf","status":"succeeded","pages":3,"tokens":42}]}
+\`\`\`
 
 ## doctor
 
@@ -176,13 +184,19 @@ Status enum: \`pass | warn | fail\`. \`overall\` is \`fail\` if any check failed
 
 \`\`\`bash
 blazedocs skills get core --raw > SKILL.md
+npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs
 blazedocs skills install
 blazedocs skills install --target-dir ~/.claude/skills --force
 \`\`\`
 
-\`skills install\` writes the bundled, version-matched skill to the local
-skill.sh-compatible universal path by default:
-\`~/.agents/skills/blazedocs/SKILL.md\`.
+\`npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs\`
+is the preferred install path because it uses skill.sh's standard installer and
+works directly from GitHub even before search indexing catches up. The fallback
+\`blazedocs skills install\` writes the bundled, version-matched skill to the
+detected agent skills location. It follows the skill installer convention:
+existing project \`.agents/skills\`, project \`.claude/skills\`, user
+\`~/.agents/skills\`, then user \`~/.claude/skills\`. If none exist, it creates
+\`./.agents/skills/blazedocs/SKILL.md\`.
 
 \`--target-dir\` accepts either a skill root such as \`~/.claude/skills\` or the
 final \`blazedocs\` skill directory. Custom installs skip existing files unless

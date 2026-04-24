@@ -128,6 +128,10 @@ export class SilentRenderer implements Renderer {
     if (anyErr.upgradeUrl) {
       safeWrite(this.stderr, `Upgrade: ${anyErr.upgradeUrl}\n`);
     }
+    const apiErr = err as unknown as { apiResponse?: string };
+    if (typeof apiErr.apiResponse === "string") {
+      safeWrite(this.stderr, redactApiKeys(apiErr.apiResponse) + "\n");
+    }
   }
 
   note(_msg: string): void {

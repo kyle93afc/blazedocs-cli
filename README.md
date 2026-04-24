@@ -42,12 +42,12 @@ Keys are stored at `~/.blazedocs/config.json` with mode `0600`. `blazedocs docto
 ## Commands
 
 ```bash
-blazedocs convert <file-or-url...> [--output <path>]
+blazedocs convert <file-or-url...> [--output <path>] [--batch]
 blazedocs usage
 blazedocs whoami
 blazedocs doctor
 blazedocs skills get core        # print the full agent manual
-blazedocs skills install         # install to ~/.agents/skills/blazedocs/SKILL.md
+blazedocs skills install         # install to the detected agent skills location
 blazedocs skills list
 blazedocs login [--api-key-stdin]
 blazedocs logout
@@ -72,12 +72,25 @@ Load the full operations manual:
 blazedocs skills get core
 ```
 
-That's 350+ lines of markdown covering every command, flag, exit code, JSON shape, and 3 common workflows. Install it as a skill:
+That's 350+ lines of markdown covering every command, flag, exit code, JSON shape, and 3 common workflows.
+
+Install the BlazeDocs skill with skill.sh:
+
+```bash
+npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs
+```
+
+That is the preferred path because it uses the same installer and location discovery as the rest of the agent-skill ecosystem. The direct GitHub URL works even before skill.sh search indexing catches up. If you are developing locally or need to install directly from the packaged CLI, use:
 
 ```bash
 blazedocs skills install
 blazedocs skills install --target-dir ~/.claude/skills --force
 ```
+
+The fallback `blazedocs skills install` command follows the agent-skill installer convention:
+existing project `.agents/skills`, project `.claude/skills`, user
+`~/.agents/skills`, then user `~/.claude/skills`. If none exist, it creates
+`./.agents/skills/blazedocs/SKILL.md`.
 
 ### JSON envelope shape
 
@@ -117,6 +130,12 @@ blazedocs convert https://example.com/paper.pdf --output paper.md
 # Agent: structured JSON, batch, parseable
 blazedocs convert *.pdf --json | jq -c 'select(.type=="result")'
 
+# Agent: explicit batch with continue-on-error summary
+blazedocs convert --batch *.pdf --concurrency 1 --on-error continue --summary summary.json --json
+
+# Agent: opt into safe API retries when your job runner retries the process
+blazedocs convert report.pdf --idempotency-key job-2026-04-25-001 --json
+
 # Agent: pure markdown payload (no envelope)
 blazedocs convert report.pdf --raw > report.md
 ```
@@ -142,9 +161,9 @@ blazedocs convert report.pdf --raw > report.md
 | `NO_COLOR` | Any non-empty value disables ANSI colors. |
 | `CI` | Any non-empty value suppresses interactive prompts. |
 
-## No retry (yet)
+## Retry safety
 
-The CLI does not retry on transient failures. `POST /api/v1/convert` isn't idempotent on the server — retry on network timeout could double-bill. Idempotency-Keys are on the server roadmap; retry returns when they ship.
+The CLI still does not retry automatically. Callers that own retry policy can pass `--idempotency-key <key>` so the billable `/convert` request is safe to repeat without double-billing. Batch mode derives stable per-input keys from the base key.
 
 ## Security
 

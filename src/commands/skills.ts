@@ -1,9 +1,9 @@
 /**
  * `blazedocs skills` subcommands.
  *
- * `install` writes the bundled, version-matched skill to a local skill
- * directory. Default path mirrors skill.sh's universal convention:
- * ~/.agents/skills/blazedocs/SKILL.md.
+ * `install` writes the bundled, version-matched skill to the local skill
+ * directory discovered with the same priority used by agent skill installers:
+ * project .agents, project .claude, user .agents, then user .claude.
  */
 
 import * as fs from "node:fs";
@@ -88,7 +88,7 @@ export async function skillsInstallCommand(
 }
 
 export function defaultSkillRoot(): string {
-  return path.join(os.homedir(), ".agents", "skills");
+  return discoverSkillRoot() ?? path.join(process.cwd(), ".agents", "skills");
 }
 
 function resolveSkillDir(targetDir: string | undefined, name: string): string {
@@ -97,6 +97,69 @@ function resolveSkillDir(targetDir: string | undefined, name: string): string {
   return path.basename(resolved) === "blazedocs"
     ? resolved
     : path.join(resolved, name === "core" ? "blazedocs" : name);
+}
+
+function discoverSkillRoot(): string | null {
+  const { project, user } = candidateSkillRoots();
+
+  for (const root of project) {
+    if (hasInstalledSkills(root)) return root;
+  }
+  for (const root of project) {
+    if (isExistingDirectory(root)) return root;
+  }
+  for (const root of user) {
+    if (hasInstalledSkills(root)) return root;
+  }
+  for (const root of user) {
+    if (isExistingDirectory(root)) return root;
+  }
+  return null;
+}
+
+function candidateSkillRoots(): { project: string[]; user: string[] } {
+  const projectRoots = ancestorDirs(process.cwd()).flatMap((dir) => [
+    path.join(dir, ".agents", "skills"),
+    path.join(dir, ".claude", "skills"),
+  ]);
+  return {
+    project: projectRoots,
+    user: [
+      path.join(os.homedir(), ".agents", "skills"),
+      path.join(os.homedir(), ".claude", "skills"),
+    ],
+  };
+}
+
+function ancestorDirs(start: string): string[] {
+  const dirs: string[] = [];
+  let current = path.resolve(start);
+  while (true) {
+    dirs.push(current);
+    const parent = path.dirname(current);
+    if (parent === current) return dirs;
+    current = parent;
+  }
+}
+
+function hasInstalledSkills(root: string): boolean {
+  try {
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (fs.existsSync(path.join(root, entry.name, "SKILL.md"))) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function isExistingDirectory(root: string): boolean {
+  try {
+    return fs.statSync(root).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function expandHome(p: string): string {

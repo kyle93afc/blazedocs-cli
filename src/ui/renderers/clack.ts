@@ -111,6 +111,10 @@ export class ClackRenderer implements Renderer {
     if (anyErr.upgradeUrl) {
       safeWrite(this.stderr,`  ${c.accent("→")} Upgrade at ${anyErr.upgradeUrl}\n`);
     }
+    const apiErr = err as unknown as { apiResponse?: string };
+    if (typeof apiErr.apiResponse === "string") {
+      safeWrite(this.stderr,`  ${c.muted(redactApiKeys(apiErr.apiResponse))}\n`);
+    }
   }
 
   note(msg: string): void {

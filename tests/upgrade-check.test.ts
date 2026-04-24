@@ -58,6 +58,29 @@ describe("checkForUpgrade", () => {
     expect(result?.install_cmd).toMatch(/npm i -g/);
   });
 
+  it("uses the highest dist-tag version so beta updates are visible from stable installs", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({
+            "dist-tags": {
+              latest: "2.0.3",
+              beta: "3.0.0-beta.7",
+            },
+          }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+    const { checkForUpgrade } = await import("../src/ui/upgrade-check.js");
+    const result = await checkForUpgrade("2.0.3");
+    expect(result?.available).toBe(true);
+    expect(result?.latest).toBe("3.0.0-beta.7");
+    expect(result?.install_cmd).toContain("3.0.0-beta.7");
+  });
+
   it("returns available=false when current === latest", async () => {
     vi.stubGlobal(
       "fetch",
@@ -154,5 +177,29 @@ describe("checkForUpgrade", () => {
     // Cache should now be valid JSON again.
     const parsed = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
     expect(parsed.latest).toBe("3.2.0");
+  });
+
+  it("ignores old cache entries written before dist-tag checks existed", async () => {
+    const cacheDir = path.join(tmpHome, ".blazedocs");
+    fs.mkdirSync(cacheDir, { recursive: true });
+    const cachePath = path.join(cacheDir, "update-check.json");
+    fs.writeFileSync(cachePath, JSON.stringify({ latest: "2.0.3", checked_at: Date.now() }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ "dist-tags": { latest: "2.0.3", beta: "3.0.0-beta.7" } }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+
+    const { checkForUpgrade } = await import("../src/ui/upgrade-check.js");
+    const result = await checkForUpgrade("2.0.3");
+
+    expect(result?.latest).toBe("3.0.0-beta.7");
+    const parsed = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
+    expect(parsed.latest).toBe("3.0.0-beta.7");
   });
 });

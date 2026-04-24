@@ -21,15 +21,25 @@ Expected output - a semver string like `2.0.0`. If this fails with "command not 
 
 Requires Node.js 18 or later. If `npx` itself is missing, the user must install Node.js first.
 
-To install this skill locally for agents that read skill.sh-compatible skill
-directories, run:
+Install this skill with skill.sh:
+
+```bash
+npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs
+```
+
+That is the preferred install path and works directly from GitHub even before
+skill.sh search indexing catches up. If you are developing BlazeDocs locally or
+need to install directly from the packaged CLI, run:
 
 ```bash
 npx blazedocs@beta skills install
 ```
 
-Default target: `~/.agents/skills/blazedocs/SKILL.md`. For a specific agent
-skill root, use:
+The fallback CLI installer auto-detects the target using the standard agent skill install
+priority: existing project `.agents/skills`, project `.claude/skills`, user
+`~/.agents/skills`, then user `~/.claude/skills`. If none exist, BlazeDocs
+creates `./.agents/skills/blazedocs/SKILL.md`. For a specific agent skill root,
+use:
 
 ```bash
 npx blazedocs@beta skills install --target-dir ~/.claude/skills --force

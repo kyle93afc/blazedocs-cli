@@ -4,6 +4,19 @@ All notable changes to the `blazedocs` CLI are documented here. This project fol
 
 ## [3.0.0-beta.7] — 2026-04-24
 
+### Added
+
+- **Agent-safe batch mode.** `blazedocs convert --batch *.pdf --concurrency 1 --on-error continue --summary summary.json --json` continues through per-file failures and writes a machine-readable summary.
+- **Idempotency key support.** `--idempotency-key <key>` forwards `Idempotency-Key` to the billable `/convert` request so external retry loops can avoid double-billing.
+
+### Fixed
+
+- **Unresolved generated image references are stripped from markdown.** Dead `![img-0.jpeg](img-0.jpeg)`-style references no longer poison downstream agent/RAG ingestion.
+- **API error bodies now reach stderr.** JSON, raw, silent, and TTY renderers include the upstream response body when the API provides one, with clearer 413 retry guidance.
+- **Update checks now see beta releases.** The checker reads npm dist-tags instead of only `/latest`, so users on stable `2.0.3` are told about `3.0.0-beta.7`.
+- **Skill install now uses standard location discovery.** `blazedocs skills install` detects existing project/user `.agents/skills` and `.claude/skills` roots instead of always writing to `~/.agents/skills`.
+- **README now points users to skill.sh first.** Skill installation docs lead with `npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs`, with the bundled installer documented as the fallback.
+
 ### Changed
 
 - **CLI conversions now use the API's direct upload flow when available.** PDFs upload to BlazeDocs storage first, then `/api/v1/convert` receives a small `storage_id` payload so large PDFs do not go through Vercel's function request body limit. The CLI falls back to multipart uploads for older/self-hosted API deployments.

@@ -146,7 +146,7 @@ skillsCmd
 
 skillsCmd
   .command("install")
-  .description("Install the bundled BlazeDocs skill locally (default: ~/.agents/skills)")
+  .description("Install the bundled BlazeDocs skill to the detected agent skills location")
   .argument("[name]", "Skill name", "core")
   .option("--target-dir <dir>", "Skill root or blazedocs skill directory")
   .option("--force", "Overwrite an existing skill file")
@@ -163,7 +163,19 @@ program
   .description("Convert one or more PDFs to Markdown")
   .argument("[inputs...]", "Local PDF paths or http/https URLs")
   .option("-o, --output <path>", "Output file or directory (trailing slash = directory)")
-  .action(async (inputs: string[], opts: { output?: string }) => {
+  .option("--batch", "Enable batch mode and write a summary JSON")
+  .option("--concurrency <n>", "Batch concurrency", "1")
+  .option("--on-error <mode>", "Batch error mode: abort or continue", "abort")
+  .option("--summary <path>", "Batch summary JSON path")
+  .option("--idempotency-key <key>", "Forward an Idempotency-Key for safe API retries")
+  .action(async (inputs: string[], opts: {
+    output?: string;
+    batch?: boolean;
+    concurrency?: string;
+    onError?: "abort" | "continue";
+    summary?: string;
+    idempotencyKey?: string;
+  }) => {
     const global = program.opts<GlobalFlags>();
     await run(global, async (ctx) => {
       const { convertCommand } = await import("../commands/convert.js");

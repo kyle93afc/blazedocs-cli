@@ -21,6 +21,66 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("convertPdf response parsing (regression for v1.1.0 empty-file bug)", () => {
+  it("sends Idempotency-Key on billable convert requests when provided", async () => {
+    const file = mkTempPdf();
+    const seen: Array<{ url: string; init?: RequestInit }> = [];
+    const stub: typeof fetch = async (_url, init) => {
+      const url = String(_url);
+      seen.push({ url, init });
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(200, {
+          success: true,
+          data: { upload_url: "https://upload.example.test/convex" },
+        });
+      }
+      if (url === "https://upload.example.test/convex") {
+        return jsonResponse(200, { storageId: "kg29storage" });
+      }
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    await convertPdf(file, {
+      apiKey: "bd_test_key",
+      idempotencyKey: "job-123",
+      fetchImpl: stub,
+    });
+
+    const convertCall = seen.find((entry) => entry.url.endsWith("/convert"));
+    expect(convertCall?.init?.headers).toMatchObject({
+      "Idempotency-Key": "job-123",
+    });
+  });
+
+  it("strips unresolved markdown image references from API output", async () => {
+    const file = mkTempPdf();
+    const stub: typeof fetch = async () =>
+      jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello\n\n![img-0.jpeg](img-0.jpeg)\n\nText\n\n![Chart](img-1.png)",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+
+    const result = await convertPdf(file, { apiKey: "bd_test_key", fetchImpl: stub });
+
+    expect(result.markdown).toBe("# Hello\n\nText");
+  });
+
   it("uploads PDFs through direct storage before calling convert", async () => {
     const file = mkTempPdf();
     const seen: Array<{ url: string; init?: RequestInit }> = [];
