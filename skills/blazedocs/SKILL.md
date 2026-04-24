@@ -1,6 +1,6 @@
 ---
 name: blazedocs
-description: Use when the user needs to convert a PDF to Markdown, extract text or tables from a PDF (including scanned or image-based PDFs), OCR a document, or ingest PDF content into a knowledge base, RAG pipeline, or note-taking vault (Obsidian, Notion, Logseq). Wraps the `blazedocs` CLI, which calls the BlazeDocs API (Mistral OCR, preserves tables and document structure). Works on local PDF files and http/https URLs. Typical invocation - `npx blazedocs convert <path-or-url> --output <dir>`.
+description: Use when the user needs to convert a PDF to Markdown, extract text or tables from a PDF (including scanned or image-based PDFs), OCR a document, or ingest PDF content into a knowledge base, RAG pipeline, or note-taking vault (Obsidian, Notion, Logseq). Wraps the `blazedocs` CLI, which calls the BlazeDocs API (preserves tables and document structure). Works on local PDF files and http/https URLs. Typical invocation - `npx blazedocs convert <path-or-url> --output <dir>`.
 metadata:
   short-description: Convert PDFs to Markdown via the BlazeDocs CLI
 ---
