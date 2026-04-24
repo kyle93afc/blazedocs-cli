@@ -2,6 +2,72 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.1] — 2026-04-24
+
+**Agent-first edition.** v3 reframes BlazeDocs CLI as a surface for AI agents first, humans second. Inspired by `microsoft/playwright-cli` and `vercel-labs/agent-browser`, driven by Sequoia's ["Services as Software" thesis](https://sequoiacap.com/article/services-the-new-software/). Every invocation is now structured, deterministic, and pipe-friendly.
+
+### Breaking changes (the reason for the major)
+
+- **`convert <file> --json` output is now a JSONL envelope.** v2.0.3 emitted the raw API response on stdout; v3 emits `{"type":"result","data":{...<same fields>...}}`. Multi-file convert emits one JSONL line per file. This is the only breaking change — any pipeline running `blazedocs convert x.pdf --json | jq .markdown` must switch to `jq .data.markdown`.
+- **Global flags `--json` / `--raw` / `--silent` / `--yes`.** These now live on `blazedocs` itself, not per-subcommand. `--json` was only on `usage` and `convert` in v2.0.3; now it's available on every command.
+- **`promptSecret` removed from `src/prompt.ts`.** The file is renamed to `src/stdin.ts` and only exports `readStdinAll`. Internal change — only affects direct programmatic consumers (the public CLI surface is unchanged).
+
+### New — for agents
+
+- **Structured error output.** Under `--json`, fatal errors emit one JSONL line to stderr: `{"error":{"code":"AUTH_REQUIRED","message":"...","hint":"...","exit_code":3}}`. Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERROR`, `FILE_NOT_FOUND`, `INVALID_ARGS`, `SKILL_NOT_FOUND`, `INTERNAL`. Agents pattern-match on `code`; the enum is load-bearing and won't change without another major.
+- **`--raw` global flag.** Emits pure payload to stdout (markdown for `convert`, no envelope, no newline added). Errors on stderr as `[AUTH_REQUIRED] message\n`, parseable with `/^\[([A-Z_]+)\] /`. Pipeline-friendly like `playwright-cli --raw`.
+- **`blazedocs doctor` command.** Runs 7 self-diagnostic checks in parallel (auth, config integrity, network, node version, config perms, disk space, CLI version). Agents call `doctor --json` after a failure to decide the recovery path: re-auth, retry, or escalate. Doctor itself always exits 0; the overall status is in `data.overall`.
+- **`blazedocs skills get core`.** Emits the full 350-line agent operations manual on stdout. Agents load this once to understand every command, flag, exit code, and common workflow. Content is version-synced with the installed binary — no network dependency.
+- **`blazedocs skills list`.** Enumerates available skills.
+- **Upgrade notification in JSON envelope.** When a newer version is available, the last JSONL line is `{"type":"meta","upgrade":{"available":true,"current":"3.0.0","latest":"3.1.0","install_cmd":"npm i -g blazedocs@latest"}}`. Agents can tell their user or self-upgrade if authorized. TTY humans see a boxed "Update Available" notice on stderr.
+- **Global kebab-case flag audit.** Every CLI flag is kebab-case. camelCase flags rejected at parse time. Covered by regression tests.
+
+### New — for humans
+
+- **`blazedocs whoami --json`** — was missing in v2.0.3.
+- **`blazedocs login` emits richer success shape** — includes `{ok, email, tier, pages_used, pages_limit, pages_remaining}` under `--json`.
+- **Config file gains optional `installedAt` field.** Reserved for v3.1's update-check cadence logic. No breaking change; existing configs continue to work.
+- **API keys redacted from every output.** `bd_live_*` and `bd_test_*` prefixes are stripped from any `message` or `hint` field before stdout/stderr emission.
+
+### Architecture
+
+- **Renderer abstraction.** Four implementations (`json`, `silent`, `raw`, `clack`) switch on global flags + TTY. Commands never read `opts.json`/`opts.raw`/`opts.silent` — they receive a `Renderer` and call `.success()`/`.error()`/`.progress()`/`.note()`. Eliminates 4x if-else ladders in every command.
+- **`bin/blazedocs.ts` is now lazy.** Only `commander` is eagerly imported at the top level; every command handler and UI module is `await import(...)` inside its `.action()` callback. `--version` and `--help` never load clack, picocolors, semver, or the API layer — budget ≤200ms cold. Enforced by a static import-graph test.
+- **Upgrade check is a direct `fetch`** to `registry.npmjs.org`, not an `npm view` subprocess. 500ms `AbortController` timeout. Cache at `~/.blazedocs/update-check.json`, 24h TTL, atomic rename to prevent torn writes under parallel invocations.
+- **`BLAZEDOCS_INTERACTIVE=0`** forces non-interactive mode regardless of TTY state. Replaces the per-agent env-var sniffing approach (unverifiable).
+- **`BLAZEDOCS_SKIP_UPDATE_CHECK=1`** bypasses the registry probe (CI, air-gapped).
+- **`BLAZEDOCS_ASCII_LOGO=1`** forces ASCII fallback over Unicode block characters.
+
+### Deferred to 3.0.0-beta.2
+
+- `blazedocs skills add <target-dir>` — writes a shell-out stub pointing at `skills get core` (codex outside-voice review flagged the security surface; beta.1 ships without it).
+- Full `@clack/prompts` TTY polish: ANSI banner, boxed welcome/usage/whoami, interactive no-args menu, `password()` prompt for login. Renderer interface stays stable; polish upgrades in place.
+- Markdown preview in terminal after convert (TTY only).
+- Clipboard copy on success.
+- Rotating tips on success.
+- Shell completion scripts.
+
+### Dependencies added
+
+- `@clack/prompts ^0.11.0` — used by ClackRenderer (progress/success/error/note lines) and the Phase 2 polish.
+- `picocolors ^1.1.1` — ANSI color with automatic TTY/NO_COLOR detection.
+- `semver ^7.6.3` — version comparison for the upgrade check.
+- `@types/semver ^7.5.8` — dev-only.
+
+Pack size target: ≤250KB (was ~40KB in v2.0.3; ~146KB of deps added). CI should fail if exceeded.
+
+### Test coverage
+
+20 tests in v2.0.3 → **73 tests in 3.0.0-beta.1**. New suites:
+- `renderers.test.ts` — 21 unit tests for json/silent/raw/clack with fake streams.
+- `upgrade-check.test.ts` — 8 tests (mocked fetch, cache TTL, corrupt-file recovery).
+- `json-stream-contract.test.ts` — 5 E2E tests proving stdout/stderr stream separation.
+- `version-import-guard.test.ts` — 2 static-analysis tests enforcing the lazy-import rule.
+- `convert-regression.test.ts` — 9 E2E tests locking v2.0.3 behavior (with in-process mock API).
+- `doctor-and-skills.test.ts` — 8 E2E tests for the new commands.
+
+All 20 existing tests still pass unchanged.
+
 ## [2.0.3] — 2026-04-24
 
 ### Fixed
