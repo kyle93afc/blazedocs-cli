@@ -16,6 +16,7 @@
 import type { BlazeDocsError } from "../../errors.js";
 import { redactApiKeys } from "../../errors.js";
 import type { Renderer, ResultMeta } from "./types.js";
+import { safeWrite } from "./safe-write.js";
 
 export interface RawRendererOpts {
   stdout?: NodeJS.WritableStream;
@@ -42,56 +43,64 @@ export class RawRenderer implements Renderer {
 
       // Convert: markdown only, no newline added.
       if (typeof obj.markdown === "string") {
-        this.stdout.write(obj.markdown);
+        safeWrite(this.stdout, obj.markdown);
+        return;
+      }
+
+      // Login success: ok flag present AND message. Match before whoami since
+      // login shares email/tier/pages_* fields with whoami. Emits a stable
+      // `ok\n` word for scripting.
+      if (obj.ok === true && typeof obj.message === "string") {
+        safeWrite(this.stdout, `ok\n`);
         return;
       }
 
       // Whoami: email if present, otherwise tier.
       if ("email" in obj && typeof obj.tier === "string") {
         const email = obj.email;
-        this.stdout.write(`${typeof email === "string" ? email : obj.tier}\n`);
+        safeWrite(this.stdout, `${typeof email === "string" ? email : obj.tier}\n`);
         return;
       }
 
       // Usage: `used/limit` (pipe-friendly arithmetic check).
       if (typeof obj.pages_used === "number" && typeof obj.pages_limit === "number") {
-        this.stdout.write(`${obj.pages_used}/${obj.pages_limit}\n`);
+        safeWrite(this.stdout, `${obj.pages_used}/${obj.pages_limit}\n`);
         return;
       }
 
       // Skills get: dump markdown content to stdout (redirection-friendly).
       if (typeof obj.content === "string" && typeof obj.name === "string") {
-        this.stdout.write(obj.content);
+        safeWrite(this.stdout, obj.content);
         return;
       }
 
       // Doctor: single-word overall status for scripting.
       if (Array.isArray(obj.checks) && typeof obj.overall === "string") {
-        this.stdout.write(`${obj.overall}\n`);
+        safeWrite(this.stdout, `${obj.overall}\n`);
         return;
       }
 
       // Generic: message string.
       if (typeof obj.message === "string") {
-        this.stdout.write(`${obj.message}\n`);
+        safeWrite(this.stdout, `${obj.message}\n`);
         return;
       }
 
       // Boolean ok shape.
       if (typeof obj.ok === "boolean") {
-        this.stdout.write(`${obj.ok ? "ok" : "fail"}\n`);
+        safeWrite(this.stdout, `${obj.ok ? "ok" : "fail"}\n`);
         return;
       }
     }
     if (typeof payload === "string") {
-      this.stdout.write(payload);
+      safeWrite(this.stdout, payload);
       return;
     }
-    this.stdout.write(String(payload));
+    safeWrite(this.stdout, String(payload));
   }
 
   error(err: BlazeDocsError): void {
-    this.stderr.write(`[${err.code}] ${redactApiKeys(err.message)}\n`);
+    safeWrite(this.stderr, `[${err.code}] ${redactApiKeys(err.message)}\n`);
   }
 
   note(_msg: string): void {

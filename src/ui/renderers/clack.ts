@@ -16,6 +16,7 @@ import type { BlazeDocsError } from "../../errors.js";
 import { redactApiKeys } from "../../errors.js";
 import { c } from "../colors.js";
 import type { Renderer, ResultMeta, UpgradeInfo } from "./types.js";
+import { safeWrite } from "./safe-write.js";
 
 export interface ClackRendererOpts {
   upgradeCheck?: Promise<UpgradeInfo | null>;
@@ -40,7 +41,7 @@ export class ClackRenderer implements Renderer {
 
   progress(msg: string): void {
     // Phase 7 replaces with @clack/prompts.spinner(). For now, single-line update.
-    this.stderr.write(`${c.muted("○")} ${msg}\n`);
+    safeWrite(this.stderr,`${c.muted("○")} ${msg}\n`);
   }
 
   success(payload: unknown, _meta?: ResultMeta): void {
@@ -61,7 +62,7 @@ export class ClackRenderer implements Renderer {
         if (writtenTo) {
           // File was written to disk. Emit a 1-line summary.
           const quotaHint = remaining != null ? ` · ${remaining} remaining this month` : "";
-          this.stderr.write(
+          safeWrite(this.stderr,
             `${c.success("✓")} Wrote ${c.bold(writtenTo)} (${pages} pages${quotaHint})\n`,
           );
         } else {
@@ -69,7 +70,7 @@ export class ClackRenderer implements Renderer {
           this.stdout.write(obj.markdown as string);
           if (!(obj.markdown as string).endsWith("\n")) this.stdout.write("\n");
           const quotaHint = remaining != null ? ` · ${remaining} remaining this month` : "";
-          this.stderr.write(
+          safeWrite(this.stderr,
             `${c.success("✓")} ${c.bold(String(obj.file_name))} (${pages} pages${quotaHint})\n`,
           );
         }
@@ -78,27 +79,27 @@ export class ClackRenderer implements Renderer {
 
       // Generic shape with `message`.
       if (typeof obj.message === "string") {
-        this.stderr.write(`${c.success("✓")} ${obj.message}\n`);
+        safeWrite(this.stderr,`${c.success("✓")} ${obj.message}\n`);
         return;
       }
     }
-    this.stderr.write(`${c.success("✓")} ${String(payload)}\n`);
+    safeWrite(this.stderr,`${c.success("✓")} ${String(payload)}\n`);
   }
 
   error(err: BlazeDocsError): void {
     const msg = redactApiKeys(err.message);
-    this.stderr.write(`${c.error("✗")} ${c.bold(err.code)}  ${msg}\n`);
+    safeWrite(this.stderr,`${c.error("✗")} ${c.bold(err.code)}  ${msg}\n`);
     if (err.hint) {
-      this.stderr.write(`  ${c.accent("→")} ${redactApiKeys(err.hint)}\n`);
+      safeWrite(this.stderr,`  ${c.accent("→")} ${redactApiKeys(err.hint)}\n`);
     }
     const anyErr = err as unknown as { upgradeUrl?: string };
     if (anyErr.upgradeUrl) {
-      this.stderr.write(`  ${c.accent("→")} Upgrade at ${anyErr.upgradeUrl}\n`);
+      safeWrite(this.stderr,`  ${c.accent("→")} Upgrade at ${anyErr.upgradeUrl}\n`);
     }
   }
 
   note(msg: string): void {
-    this.stderr.write(`${c.muted("◈")} ${c.muted(msg)}\n`);
+    safeWrite(this.stderr,`${c.muted("◈")} ${c.muted(msg)}\n`);
   }
 
   async close(): Promise<void> {
@@ -106,21 +107,25 @@ export class ClackRenderer implements Renderer {
     this.closed = true;
     if (!this.upgradeCheck) return;
 
-    const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), this.upgradeTimeoutMs),
-    );
+    let timerHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timerHandle = setTimeout(() => resolve(null), this.upgradeTimeoutMs);
+      timerHandle.unref?.();
+    });
     try {
       const info = await Promise.race([this.upgradeCheck, timeout]);
       if (info && info.available) {
-        this.stderr.write(
+        safeWrite(this.stderr,
           `\n${c.warn("▲")} Update available: ${c.bold(info.latest ?? "?")} (current: ${info.current})\n`,
         );
         if (info.install_cmd) {
-          this.stderr.write(`  ${c.accent("→")} ${c.bold(info.install_cmd)}\n`);
+          safeWrite(this.stderr,`  ${c.accent("→")} ${c.bold(info.install_cmd)}\n`);
         }
       }
     } catch {
       /* silent */
+    } finally {
+      if (timerHandle) clearTimeout(timerHandle);
     }
   }
 }

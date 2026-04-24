@@ -19,6 +19,7 @@
 import type { BlazeDocsError } from "../../errors.js";
 import { exitCodeFor, redactApiKeys } from "../../errors.js";
 import type { Renderer, ResultMeta, UpgradeInfo } from "./types.js";
+import { safeWrite } from "./safe-write.js";
 
 export interface JsonRendererOpts {
   /** Promise resolved when the upgrade-check completes (up to 500ms). */
@@ -47,7 +48,7 @@ export class JsonRenderer implements Renderer {
   }
 
   private writeLine(stream: NodeJS.WritableStream, obj: unknown): void {
-    stream.write(JSON.stringify(obj) + "\n");
+    safeWrite(stream, JSON.stringify(obj) + "\n");
   }
 
   progress(msg: string): void {
@@ -90,9 +91,14 @@ export class JsonRenderer implements Renderer {
     this.closed = true;
     if (!this.upgradeCheck) return;
 
-    const timeout = new Promise<null>((resolve) =>
-      setTimeout(() => resolve(null), this.upgradeTimeoutMs),
-    );
+    // Capture and clear the timer handle so the event loop isn't pinned when
+    // upgradeCheck wins the race. unref() is belt-and-braces: even if we
+    // forget to clearTimeout, the timer won't keep the process alive.
+    let timerHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timerHandle = setTimeout(() => resolve(null), this.upgradeTimeoutMs);
+      timerHandle.unref?.();
+    });
     try {
       const info = await Promise.race([this.upgradeCheck, timeout]);
       if (info && info.available) {
@@ -100,6 +106,8 @@ export class JsonRenderer implements Renderer {
       }
     } catch {
       /* check errored silently */
+    } finally {
+      if (timerHandle) clearTimeout(timerHandle);
     }
   }
 }

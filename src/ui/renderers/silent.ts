@@ -17,6 +17,7 @@
 import type { BlazeDocsError } from "../../errors.js";
 import { redactApiKeys } from "../../errors.js";
 import type { Renderer, ResultMeta } from "./types.js";
+import { safeWrite } from "./safe-write.js";
 
 export interface SilentRendererOpts {
   stdout?: NodeJS.WritableStream;
@@ -45,9 +46,17 @@ export class SilentRenderer implements Renderer {
       const md = obj.markdown;
       if (typeof md === "string") {
         if (!hasWrittenTo) {
-          this.stdout.write(md);
-          if (!md.endsWith("\n")) this.stdout.write("\n");
+          safeWrite(this.stdout, md);
+          if (!md.endsWith("\n")) safeWrite(this.stdout, "\n");
         }
+        return;
+      }
+
+      // Login success payload: carries both `ok:true` AND a `message`. Match this
+      // BEFORE the whoami/usage branches because login shares email+tier+pages_*
+      // fields. The `message` is the v2.0.3-parity "Logged in..." line.
+      if (obj.ok === true && typeof obj.message === "string") {
+        safeWrite(this.stdout, `${obj.message}\n`);
         return;
       }
 
@@ -61,11 +70,11 @@ export class SilentRenderer implements Renderer {
       ) {
         const email = obj.email;
         if (typeof email === "string") {
-          this.stdout.write(
+          safeWrite(this.stdout,
             `${email} (${obj.tier} plan, ${obj.pages_remaining}/${obj.pages_limit} pages remaining)\n`,
           );
         } else {
-          this.stdout.write(
+          safeWrite(this.stdout,
             `${obj.tier} plan — ${obj.pages_used}/${obj.pages_limit} pages used, ${obj.pages_remaining} remaining\n`,
           );
         }
@@ -79,7 +88,7 @@ export class SilentRenderer implements Renderer {
         typeof obj.pages_remaining === "number" &&
         typeof obj.tier === "string"
       ) {
-        this.stdout.write(
+        safeWrite(this.stdout,
           `Pages used:      ${obj.pages_used}\nPages limit:     ${obj.pages_limit}\nPages remaining: ${obj.pages_remaining}\nTier:            ${obj.tier}\n`,
         );
         return;
@@ -87,8 +96,8 @@ export class SilentRenderer implements Renderer {
 
       // Skills get: dump `content` to stdout so `skills get core > SKILL.md` works.
       if (typeof obj.content === "string" && typeof obj.name === "string") {
-        this.stdout.write(obj.content);
-        if (!obj.content.endsWith("\n")) this.stdout.write("\n");
+        safeWrite(this.stdout, obj.content);
+        if (!obj.content.endsWith("\n")) safeWrite(this.stdout, "\n");
         return;
       }
 
@@ -97,16 +106,16 @@ export class SilentRenderer implements Renderer {
         const checks = obj.checks as Array<{ name: string; status: string; detail: string; hint?: string }>;
         for (const c of checks) {
           const mark = c.status === "pass" ? "✓" : c.status === "warn" ? "▲" : "✗";
-          this.stdout.write(`${mark}  ${c.name}: ${c.detail}\n`);
-          if (c.hint) this.stdout.write(`   → ${c.hint}\n`);
+          safeWrite(this.stdout, `${mark}  ${c.name}: ${c.detail}\n`);
+          if (c.hint) safeWrite(this.stdout, `   → ${c.hint}\n`);
         }
-        this.stdout.write(`\nOverall: ${obj.overall}\n`);
+        safeWrite(this.stdout, `\nOverall: ${obj.overall}\n`);
         return;
       }
 
-      // Generic payload with a human-readable message (logout, login, skills list).
+      // Generic payload with a human-readable message (logout, skills list).
       if (typeof obj.message === "string") {
-        this.stdout.write(`${obj.message}\n`);
+        safeWrite(this.stdout, `${obj.message}\n`);
         return;
       }
     }
@@ -114,10 +123,10 @@ export class SilentRenderer implements Renderer {
 
   error(err: BlazeDocsError): void {
     const msg = redactApiKeys(err.message);
-    this.stderr.write(`${msg}\n`);
+    safeWrite(this.stderr, `${msg}\n`);
     const anyErr = err as unknown as { upgradeUrl?: string };
     if (anyErr.upgradeUrl) {
-      this.stderr.write(`Upgrade: ${anyErr.upgradeUrl}\n`);
+      safeWrite(this.stderr, `Upgrade: ${anyErr.upgradeUrl}\n`);
     }
   }
 

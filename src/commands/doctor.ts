@@ -43,15 +43,38 @@ async function checkAuth(): Promise<DoctorCheck> {
     };
   }
 
+  // 3-second timeout so doctor stays fast even if the API stalls. The whole
+  // point of doctor is to diagnose broken networks — if checkAuth hung on a
+  // half-open connection, the command would be useless.
+  const authTimeoutMs = 3000;
+  let timerHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<DoctorCheck>((resolve) => {
+    timerHandle = setTimeout(() => {
+      resolve({
+        name: "Auth",
+        status: "fail",
+        detail: `API did not respond within ${authTimeoutMs}ms.`,
+        hint: "Run `blazedocs doctor` again; persistent timeout means API or network issue.",
+      });
+    }, authTimeoutMs);
+    timerHandle.unref?.();
+  });
+
   try {
-    const snap = await getUsage(key);
-    const tier = typeof snap.tier === "string" ? snap.tier : "unknown";
-    const email = typeof snap.email === "string" ? snap.email : null;
-    return {
-      name: "Auth",
-      status: "pass",
-      detail: email ? `${email} (${tier})` : `${tier} plan`,
-    };
+    const result = await Promise.race([
+      (async (): Promise<DoctorCheck> => {
+        const snap = await getUsage(key);
+        const tier = typeof snap.tier === "string" ? snap.tier : "unknown";
+        const email = typeof snap.email === "string" ? snap.email : null;
+        return {
+          name: "Auth",
+          status: "pass",
+          detail: email ? `${email} (${tier})` : `${tier} plan`,
+        };
+      })(),
+      timeout,
+    ]);
+    return result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
@@ -60,6 +83,8 @@ async function checkAuth(): Promise<DoctorCheck> {
       detail: `Key validation failed: ${msg}`,
       hint: "Key may be revoked. Re-run `blazedocs login`.",
     };
+  } finally {
+    if (timerHandle) clearTimeout(timerHandle);
   }
 }
 

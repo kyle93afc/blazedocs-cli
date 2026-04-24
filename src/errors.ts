@@ -107,8 +107,6 @@ export class SkillNotFoundError extends BlazeDocsError {
 }
 
 export function exitCodeFor(err: unknown): number {
-  if (err instanceof AuthError) return 3;
-  if (err instanceof QuotaExceededError) return 2;
   if (err instanceof BlazeDocsError) {
     switch (err.code) {
       case ERROR_CODES.AUTH_REQUIRED:
