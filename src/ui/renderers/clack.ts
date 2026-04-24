@@ -1,0 +1,98 @@
+/**
+ * Clack Renderer: TTY human-facing mode.
+ *
+ * v3.0-beta.1 ships a minimal version: colored lines on stderr for progress,
+ * a rendered boxed success line on stderr, a boxed error on stderr. The
+ * banner, first-run wizard, boxed quota display, and @clack/prompts spinner
+ * integration land in Phase 7.
+ *
+ * Rationale for the minimal shape: every renderer needs to ship before
+ * bin/blazedocs.ts can dispatch to them. Phase 7 then upgrades clack.ts in
+ * place to use @clack/prompts spinner, box(), note(), etc. The interface
+ * (Renderer) stays stable so commands never re-migrate.
+ */
+
+import type { BlazeDocsError } from "../../errors.js";
+import { redactApiKeys } from "../../errors.js";
+import { c } from "../colors.js";
+import type { Renderer, ResultMeta, UpgradeInfo } from "./types.js";
+
+export interface ClackRendererOpts {
+  upgradeCheck?: Promise<UpgradeInfo | null>;
+  upgradeTimeoutMs?: number;
+  stdout?: NodeJS.WritableStream;
+  stderr?: NodeJS.WritableStream;
+}
+
+export class ClackRenderer implements Renderer {
+  private readonly stdout: NodeJS.WritableStream;
+  private readonly stderr: NodeJS.WritableStream;
+  private readonly upgradeCheck?: Promise<UpgradeInfo | null>;
+  private readonly upgradeTimeoutMs: number;
+  private closed = false;
+
+  constructor(opts: ClackRendererOpts = {}) {
+    this.stdout = opts.stdout ?? process.stdout;
+    this.stderr = opts.stderr ?? process.stderr;
+    this.upgradeCheck = opts.upgradeCheck;
+    this.upgradeTimeoutMs = opts.upgradeTimeoutMs ?? 500;
+  }
+
+  progress(msg: string): void {
+    // Phase 7 replaces with @clack/prompts.spinner(). For now, single-line update.
+    this.stderr.write(`${c.muted("○")} ${msg}\n`);
+  }
+
+  success(payload: unknown, _meta?: ResultMeta): void {
+    // Convert's success line is a specific format. Other commands supply their own.
+    // Default: if payload has a `message` string, emit it with a ✓.
+    if (payload && typeof payload === "object") {
+      const obj = payload as Record<string, unknown>;
+      if (typeof obj.message === "string") {
+        this.stderr.write(`${c.success("✓")} ${obj.message}\n`);
+        return;
+      }
+    }
+    // Stringly: just success-tag it.
+    this.stderr.write(`${c.success("✓")} ${String(payload)}\n`);
+  }
+
+  error(err: BlazeDocsError): void {
+    const msg = redactApiKeys(err.message);
+    this.stderr.write(`${c.error("✗")} ${c.bold(err.code)}  ${msg}\n`);
+    if (err.hint) {
+      this.stderr.write(`  ${c.accent("→")} ${redactApiKeys(err.hint)}\n`);
+    }
+    const anyErr = err as unknown as { upgradeUrl?: string };
+    if (anyErr.upgradeUrl) {
+      this.stderr.write(`  ${c.accent("→")} Upgrade at ${anyErr.upgradeUrl}\n`);
+    }
+  }
+
+  note(msg: string): void {
+    this.stderr.write(`${c.muted("◈")} ${c.muted(msg)}\n`);
+  }
+
+  async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    if (!this.upgradeCheck) return;
+
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(() => resolve(null), this.upgradeTimeoutMs),
+    );
+    try {
+      const info = await Promise.race([this.upgradeCheck, timeout]);
+      if (info && info.available) {
+        this.stderr.write(
+          `\n${c.warn("▲")} Update available: ${c.bold(info.latest ?? "?")} (current: ${info.current})\n`,
+        );
+        if (info.install_cmd) {
+          this.stderr.write(`  ${c.accent("→")} ${c.bold(info.install_cmd)}\n`);
+        }
+      }
+    } catch {
+      /* silent */
+    }
+  }
+}
