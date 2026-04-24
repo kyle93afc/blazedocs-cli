@@ -230,4 +230,50 @@ describe("convert regression (v2.0.3 parity)", () => {
     expect(err.error.code).toBe("QUOTA_EXCEEDED");
     expect(err.error.exit_code).toBe(2);
   });
+
+  it("convert API 429 with empty body still gives useful non-JSON stderr", async () => {
+    const pdf = makeFakePdf();
+    nextResponse = {
+      status: 429,
+      body: {},
+    };
+    const res = await runCli(["convert", pdf, "-o", path.join(os.tmpdir(), "rate-limit.md")], testEnv());
+    expect(res.exitCode).toBe(2);
+    expect(res.stdout).toBe("");
+    expect(res.stderr).toMatch(/429|rate limit|quota/i);
+  });
+
+  it("convert API 413 explains file-size failure", async () => {
+    const pdf = makeFakePdf();
+    nextResponse = {
+      status: 413,
+      body: {},
+    };
+    const res = await runCli(["--json", "convert", pdf], testEnv());
+    expect(res.exitCode).toBe(1);
+    expect(res.stdout).toBe("");
+    const err = JSON.parse(res.stderr.trim().split("\n")[0]);
+    expect(err.error.code).toBe("API_ERROR");
+    expect(err.error.message).toMatch(/file too large|413/i);
+  });
+
+  it("burst API failures never exit with empty stderr", async () => {
+    nextResponse = {
+      status: 429,
+      body: {},
+    };
+    const runs = await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        const pdf = makeFakePdf();
+        return runCli(["convert", pdf, "-o", path.join(os.tmpdir(), `burst-${process.pid}-${Math.random()}.md`)], testEnv());
+      }),
+    );
+
+    for (const res of runs) {
+      expect(res.exitCode).toBe(2);
+      expect(res.stdout).toBe("");
+      expect(res.stderr.trim()).not.toBe("");
+      expect(res.stderr).toMatch(/429|rate limit|quota/i);
+    }
+  });
 });

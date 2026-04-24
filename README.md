@@ -20,7 +20,7 @@ npm install -g blazedocs@beta
 
 Requires Node.js 18 or later.
 
-> v3.0.0-beta.4 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
+> v3.0.0-beta.5 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
 
 ## Authenticate
 

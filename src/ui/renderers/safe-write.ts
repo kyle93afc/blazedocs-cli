@@ -10,8 +10,15 @@
  * for SIGPIPE-ish conditions is to exit 0 cleanly (we let the caller's exit
  * code logic handle that; we just don't crash on write).
  */
+import * as fs from "node:fs";
+
 export function safeWrite(stream: NodeJS.WritableStream, data: string): void {
   try {
+    const fd = (stream as NodeJS.WritableStream & { fd?: unknown }).fd;
+    if (typeof fd === "number") {
+      fs.writeSync(fd, data);
+      return;
+    }
     stream.write(data);
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;

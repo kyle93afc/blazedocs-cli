@@ -2,6 +2,14 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.5] — 2026-04-24
+
+### Fixed
+
+- **Failed conversions no longer risk empty stderr under bursty subprocess runs.** Renderer writes now use synchronous fd writes for real stdout/stderr so the CLI cannot drop a short error message immediately before `process.exit()`.
+- **429 responses now produce explicit rate-limit/quota guidance.** Empty or generic 429 API responses render as “Rate limit or quota exceeded (429 Too Many Requests)” with a retry-delay/quota-check hint.
+- **413 responses now explain file-size failures.** Empty or generic 413 API responses render as “File too large (413 Request Entity Too Large)” instead of a generic API error.
+
 ## [3.0.0-beta.4] — 2026-04-24
 
 ### Added
@@ -88,7 +96,7 @@ Pack size target: ≤250KB (was ~40KB in v2.0.3; ~146KB of deps added). CI shoul
 
 ### Test coverage
 
-20 tests in v2.0.3 → **83 tests in 3.0.0-beta.4**. New suites:
+20 tests in v2.0.3 → **86 tests in 3.0.0-beta.5**. New suites:
 - `renderers.test.ts` — 21 unit tests for json/silent/raw/clack with fake streams.
 - `upgrade-check.test.ts` — 8 tests (mocked fetch, cache TTL, corrupt-file recovery).
 - `json-stream-contract.test.ts` — 5 E2E tests proving stdout/stderr stream separation.

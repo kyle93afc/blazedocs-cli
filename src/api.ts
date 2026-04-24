@@ -164,9 +164,21 @@ function throwForStatus(status: number, body: ApiErrorBody): never {
     throw new AuthError(message);
   }
   if (status === 429) {
-    throw new QuotaExceededError(message, upgradeUrl);
+    const detail =
+      message === "API error" || /^429\b/.test(message)
+        ? "Rate limit or quota exceeded (429 Too Many Requests). Retry with a short delay, or check your BlazeDocs quota."
+        : message;
+    throw new QuotaExceededError(detail, upgradeUrl);
   }
-  throw new ApiError(status, message, code);
+  if (status === 413) {
+    const detail =
+      message === "API error" || /^413\b/.test(message)
+        ? "File too large (413 Request Entity Too Large). Check your plan's upload limit or try a smaller PDF."
+        : `File too large: ${message}`;
+    throw new ApiError(status, detail, code ?? "REQUEST_ENTITY_TOO_LARGE");
+  }
+  const detail = message === "API error" ? `${status} API error` : message;
+  throw new ApiError(status, detail, code);
 }
 
 async function readJsonSafe(response: Response): Promise<ApiErrorBody> {
