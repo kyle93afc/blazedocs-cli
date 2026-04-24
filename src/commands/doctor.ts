@@ -13,7 +13,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import { configPath, loadConfig } from "../config.js";
-import { API_BASE, getUsage } from "../api.js";
+import { API_BASE, getUsage, displayTier } from "../api.js";
 import type { Renderer } from "../ui/renderers/types.js";
 
 export interface DoctorCheck {
@@ -64,7 +64,9 @@ async function checkAuth(): Promise<DoctorCheck> {
     const result = await Promise.race([
       (async (): Promise<DoctorCheck> => {
         const snap = await getUsage(key);
-        const tier = typeof snap.tier === "string" ? snap.tier : "unknown";
+        // Use displayTier() so the Auth check shows the same tier label as
+        // whoami/usage (v2.0.3 mapping: backend slug "business" → "Enterprise").
+        const tier = displayTier(typeof snap.tier === "string" ? snap.tier : undefined);
         const email = typeof snap.email === "string" ? snap.email : null;
         return {
           name: "Auth",
