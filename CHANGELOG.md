@@ -2,6 +2,12 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.7] — 2026-04-24
+
+### Changed
+
+- **CLI conversions now use the API's direct upload flow when available.** PDFs upload to BlazeDocs storage first, then `/api/v1/convert` receives a small `storage_id` payload so large PDFs do not go through Vercel's function request body limit. The CLI falls back to multipart uploads for older/self-hosted API deployments.
+
 ## [3.0.0-beta.6] — 2026-04-24
 
 ### Changed

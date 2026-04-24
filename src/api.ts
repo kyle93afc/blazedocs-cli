@@ -196,6 +196,100 @@ export interface ConvertOptions {
   fetchImpl?: typeof fetch;
 }
 
+function fileBytesFromBuffer(fileBuffer: Buffer): ArrayBuffer {
+  return fileBuffer.buffer.slice(
+    fileBuffer.byteOffset,
+    fileBuffer.byteOffset + fileBuffer.byteLength,
+  ) as ArrayBuffer;
+}
+
+async function convertPdfMultipart(
+  fileBuffer: Buffer,
+  fileName: string,
+  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+): Promise<Response> {
+  const formData = new FormData();
+  formData.append("file", new File([fileBytesFromBuffer(fileBuffer)], fileName, { type: "application/pdf" }));
+
+  return options.fetchImpl(`${API_BASE}/convert`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.apiKey}`,
+    },
+    body: formData,
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+}
+
+async function convertPdfViaStorage(
+  fileBuffer: Buffer,
+  fileName: string,
+  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+): Promise<Response | null> {
+  const uploadUrlResponse = await options.fetchImpl(`${API_BASE}/upload-url`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.apiKey}`,
+    },
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+
+  if ([404, 405, 501].includes(uploadUrlResponse.status)) {
+    return null;
+  }
+
+  const uploadUrlBody = (await readJsonSafe(uploadUrlResponse)) as ApiErrorBody & {
+    data?: { upload_url?: string; uploadUrl?: string };
+    upload_url?: string;
+    uploadUrl?: string;
+  };
+  if (!uploadUrlResponse.ok) throwForStatus(uploadUrlResponse.status, uploadUrlBody);
+
+  const uploadUrl =
+    uploadUrlBody.data?.upload_url ||
+    uploadUrlBody.data?.uploadUrl ||
+    uploadUrlBody.upload_url ||
+    uploadUrlBody.uploadUrl;
+
+  if (!uploadUrl) {
+    return null;
+  }
+
+  const uploadResponse = await options.fetchImpl(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/pdf",
+    },
+    body: new File([fileBytesFromBuffer(fileBuffer)], fileName, { type: "application/pdf" }),
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+
+  const storageBody = (await readJsonSafe(uploadResponse)) as ApiErrorBody & {
+    storageId?: string;
+    storage_id?: string;
+  };
+  if (!uploadResponse.ok) throwForStatus(uploadResponse.status, storageBody);
+
+  const storageId = storageBody.storageId || storageBody.storage_id;
+  if (!storageId) {
+    throw new ApiError(uploadResponse.status, "Unexpected upload response shape: missing storageId");
+  }
+
+  return options.fetchImpl(`${API_BASE}/convert`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${options.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      storage_id: storageId,
+      file_name: fileName,
+      file_size: fileBuffer.byteLength,
+    }),
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+}
+
 export async function convertPdf(
   filePathOrUrl: string,
   options: ConvertOptions,
@@ -227,24 +321,15 @@ export async function convertPdf(
     fileName = path.basename(resolvedPath);
   }
 
-  const formData = new FormData();
-  const fileBytes = fileBuffer.buffer.slice(
-    fileBuffer.byteOffset,
-    fileBuffer.byteOffset + fileBuffer.byteLength,
-  ) as ArrayBuffer;
-  formData.append("file", new File([fileBytes], fileName, { type: "application/pdf" }));
-
   let response: Response;
   try {
-    response = await fetchImpl(`${API_BASE}/convert`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: formData,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    response =
+      (await convertPdfViaStorage(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl })) ??
+      (await convertPdfMultipart(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }));
   } catch (e) {
+    if (e instanceof AuthError || e instanceof QuotaExceededError || e instanceof ApiError) {
+      throw e;
+    }
     throw new NetworkError(`Network error calling API: ${(e as Error).message}`);
   }
 

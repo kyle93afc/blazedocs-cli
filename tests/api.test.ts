@@ -21,12 +21,62 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("convertPdf response parsing (regression for v1.1.0 empty-file bug)", () => {
-  it("uploads PDFs as multipart form-data, not base64 JSON", async () => {
+  it("uploads PDFs through direct storage before calling convert", async () => {
     const file = mkTempPdf();
-    let seenHeaders: HeadersInit | undefined;
+    const seen: Array<{ url: string; init?: RequestInit }> = [];
+    const stub: typeof fetch = async (_url, init) => {
+      const url = String(_url);
+      seen.push({ url, init });
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(200, {
+          success: true,
+          data: { upload_url: "https://upload.example.test/convex" },
+        });
+      }
+      if (url === "https://upload.example.test/convex") {
+        return jsonResponse(200, { storageId: "kg29storage" });
+      }
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    await convertPdf(file, { apiKey: "bd_test_key", fetchImpl: stub });
+
+    expect(seen).toHaveLength(3);
+    expect(seen[0].url).toContain("/upload-url");
+    expect(seen[0].init?.headers).toEqual({
+      Authorization: "Bearer bd_test_key",
+    });
+    expect(seen[1].url).toBe("https://upload.example.test/convex");
+    expect(seen[1].init?.body).toBeInstanceOf(File);
+    expect(seen[2].url).toContain("/convert");
+    expect(seen[2].init?.headers).toEqual({
+      Authorization: "Bearer bd_test_key",
+      "Content-Type": "application/json",
+    });
+    expect(JSON.parse(String(seen[2].init?.body))).toMatchObject({
+      storage_id: "kg29storage",
+      file_name: "sample.pdf",
+    });
+  });
+
+  it("falls back to multipart when the server does not support upload URLs", async () => {
+    const file = mkTempPdf();
     let seenBody: BodyInit | null | undefined;
     const stub: typeof fetch = async (_url, init) => {
-      seenHeaders = init?.headers;
+      const url = String(_url);
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(404, { error: "not found" });
+      }
       seenBody = init?.body;
       return jsonResponse(200, {
         success: true,
@@ -44,9 +94,6 @@ describe("convertPdf response parsing (regression for v1.1.0 empty-file bug)", (
     await convertPdf(file, { apiKey: "bd_test_key", fetchImpl: stub });
 
     expect(seenBody).toBeInstanceOf(FormData);
-    expect(seenHeaders).toEqual({
-      Authorization: "Bearer bd_test_key",
-    });
   });
 
   it("reads markdown from result.data.markdown, not result.markdown", async () => {

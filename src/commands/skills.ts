@@ -30,7 +30,7 @@ export async function skillsGetCommand(name: string, renderer: Renderer): Promis
   renderer.success({
     name,
     content,
-    version: process.env.npm_package_version ?? "3.0.0-beta.6",
+    version: process.env.npm_package_version ?? "3.0.0-beta.7",
   });
 }
 
