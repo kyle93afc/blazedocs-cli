@@ -26,7 +26,10 @@ stderr for errors.
 
 \`\`\`bash
 npm install -g blazedocs
-blazedocs login  # interactive, or:
+# Humans: run the guided setup.
+blazedocs
+
+# Agents/CI: use the non-interactive login path.
 echo "$BLAZEDOCS_API_KEY" | blazedocs login --api-key-stdin
 \`\`\`
 
@@ -92,7 +95,7 @@ Stream-parse with \`jq -c 'select(.type=="result")'\` to drain results, or
 Under \`--json\`, fatal errors emit ONE line to stderr:
 
 \`\`\`json
-{"error":{"code":"AUTH_REQUIRED","message":"Not authenticated.","hint":"Run \`blazedocs login\`.","exit_code":3}}
+{"error":{"code":"AUTH_REQUIRED","message":"Not authenticated.","hint":"Run \`blazedocs\` to open setup, or set BLAZEDOCS_API_KEY.","exit_code":3}}
 \`\`\`
 
 Stable error codes (agents pattern-match on \`code\`):
@@ -156,7 +159,7 @@ JSON shape:
     "checks": [
       {"name": "Auth", "status": "pass", "detail": "kyle@blazedocs.io (Pro)"},
       {"name": "Config", "status": "warn", "detail": "Config file present but no API key.",
-       "hint": "Run \`blazedocs login\` to set one."},
+       "hint": "Run \`blazedocs\` to set one."},
       ...
     ],
     "overall": "warn",

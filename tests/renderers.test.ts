@@ -64,7 +64,7 @@ describe("JsonRenderer", () => {
     const obj = JSON.parse(s.stderr.text.trim());
     expect(obj.error.code).toBe("AUTH_REQUIRED");
     expect(obj.error.exit_code).toBe(3);
-    expect(obj.error.hint).toMatch(/login/i);
+    expect(obj.error.hint).toMatch(/blazedocs/);
   });
 
   it("QuotaExceeded error includes upgrade_url when present", async () => {
@@ -244,7 +244,7 @@ describe("ClackRenderer", () => {
     await r.close();
     expect(s.stdout.text).toBe("");
     expect(s.stderr.text).toMatch(/AUTH_REQUIRED/);
-    expect(s.stderr.text).toMatch(/login/);
+    expect(s.stderr.text).toMatch(/blazedocs/);
   });
 
   it("note writes to stderr with a muted prefix", async () => {

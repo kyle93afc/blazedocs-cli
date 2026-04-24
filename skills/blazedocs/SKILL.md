@@ -36,7 +36,7 @@ If not authenticated, the user has three options. Do NOT pass the key on the com
 
 1. **Interactive login** (preferred for humans):
    ```bash
-   npx blazedocs login
+   npx blazedocs
    ```
    Prompts for the key with hidden input, validates it against the API, stores it in `~/.blazedocs/config.json` with mode 0600.
 
@@ -97,11 +97,11 @@ The CLI throws typed errors and uses distinct exit codes. Match on exit code, no
 | 0 | Success | Markdown written as requested |
 | 1 | Generic failure (file not found, invalid PDF, network error that already retried and failed) | Surface the stderr message to the user verbatim; do not retry |
 | 2 | Quota exceeded (429 with `upgrade_required`) | Print the `upgradeUrl` the CLI emits and ask the user whether to upgrade. Do NOT retry - the next call will fail identically until billing changes |
-| 3 | Authentication failed (401) | Suggest `npx blazedocs login` or `BLAZEDOCS_API_KEY` env var; do not retry |
+| 3 | Authentication failed (401) | Suggest `npx blazedocs` for humans, or `BLAZEDOCS_API_KEY` / `login --api-key-stdin` for agents; do not retry |
 
 Specific errors you may see on stderr:
 
-- `Not authenticated. Run 'blazedocs login' or set BLAZEDOCS_API_KEY.` - auth not configured; go to Section 2
+- `Not authenticated. Run 'blazedocs' to set up BlazeDocs, or set BLAZEDOCS_API_KEY.` - auth not configured; go to Section 2
 - `File not found: <path>` - verify path; check for typos and relative-path issues (CLI resolves relative to cwd)
 - `Monthly page limit reached. Upgrade - <url>` - quota exhausted; stop batch conversions
 - `Invalid PDF file` - file is corrupt, password-protected, or not actually a PDF

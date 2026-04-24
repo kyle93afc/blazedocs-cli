@@ -172,6 +172,6 @@ describe("doctor", () => {
     const cfg = parsed.data.checks.find((c: { name: string }) => c.name === "Config");
     expect(cfg?.status).toBe("warn");
     expect(cfg?.detail).toMatch(/no API key/i);
-    expect(cfg?.hint).toMatch(/login/);
+    expect(cfg?.hint).toMatch(/blazedocs/);
   });
 });

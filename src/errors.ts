@@ -34,8 +34,8 @@ export class BlazeDocsError extends Error {
 
 export class AuthError extends BlazeDocsError {
   constructor(
-    message = "Not authenticated. Run `blazedocs login` or set BLAZEDOCS_API_KEY.",
-    hint = "Run `blazedocs login` or set BLAZEDOCS_API_KEY.",
+    message = "Not authenticated. Run `blazedocs` to set up BlazeDocs, or set BLAZEDOCS_API_KEY.",
+    hint = "Run `blazedocs` to open setup, or set BLAZEDOCS_API_KEY.",
   ) {
     super(ERROR_CODES.AUTH_REQUIRED, message, hint);
     this.name = "AuthError";

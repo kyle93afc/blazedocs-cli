@@ -19,7 +19,7 @@ export async function interactiveCommand(
   if (!isInteractive() || opts.yes) {
     renderer.success({
       message:
-        "BlazeDocs CLI. Try `blazedocs login`, `blazedocs convert <file.pdf>`, or `blazedocs --help`.",
+        "BlazeDocs CLI. Try `blazedocs` for setup, `blazedocs convert <file.pdf>`, or `blazedocs --help`.",
     });
     return;
   }
@@ -76,4 +76,3 @@ async function showCurrentUsage(): Promise<void> {
     // render the real error if it also needs the API.
   }
 }
-

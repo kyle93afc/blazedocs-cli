@@ -54,7 +54,7 @@ describe("binary smoke tests", () => {
       env: unauthEnv(),
     });
     expect(res.status).toBe(3);
-    const hintCount = (res.stderr.match(/blazedocs login/g) || []).length;
+    const hintCount = (res.stderr.match(/blazedocs/g) || []).length;
     expect(hintCount).toBe(1);
   });
 

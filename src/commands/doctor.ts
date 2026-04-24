@@ -39,7 +39,7 @@ async function checkAuth(): Promise<DoctorCheck> {
       name: "Auth",
       status: "fail",
       detail: "No API key found.",
-      hint: "Run `blazedocs login` or set BLAZEDOCS_API_KEY.",
+      hint: "Run `blazedocs` to open setup, or set BLAZEDOCS_API_KEY.",
     };
   }
 
@@ -83,7 +83,7 @@ async function checkAuth(): Promise<DoctorCheck> {
       name: "Auth",
       status: "fail",
       detail: `Key validation failed: ${msg}`,
-      hint: "Key may be revoked. Re-run `blazedocs login`.",
+      hint: "Key may be revoked. Run `blazedocs` and choose Log in.",
     };
   } finally {
     if (timerHandle) clearTimeout(timerHandle);
@@ -109,7 +109,7 @@ function checkPartialConfig(): DoctorCheck {
       name: "Config",
       status: "warn",
       detail: "Config file present but no API key.",
-      hint: "Run `blazedocs login` to set one.",
+      hint: "Run `blazedocs` to set one.",
     };
   }
   return {

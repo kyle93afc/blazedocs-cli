@@ -2,6 +2,12 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.3] — 2026-04-24
+
+### Fixed
+
+- **First-run auth guidance now points humans to `blazedocs`.** Auth errors, README onboarding, doctor partial-config hints, and the bundled agent manual now tell interactive users to run plain `blazedocs` for guided setup. The non-interactive `login --api-key-stdin` path remains documented for agents and CI.
+
 ## [3.0.0-beta.2] — 2026-04-24
 
 ### Added

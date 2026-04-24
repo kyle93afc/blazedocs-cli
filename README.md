@@ -20,7 +20,7 @@ npm install -g blazedocs@beta
 
 Requires Node.js 18 or later.
 
-> v3.0.0-beta.2 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
+> v3.0.0-beta.3 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
 
 ## Authenticate
 
@@ -28,7 +28,7 @@ Get a free API key at https://blazedocs.io/dashboard/api, then:
 
 ```bash
 # Interactive (humans)
-blazedocs login
+blazedocs
 
 # Non-interactive (agents, CI)
 echo "$MY_KEY" | blazedocs login --api-key-stdin
@@ -88,7 +88,7 @@ Multi-file `convert --json` emits one `type:"result"` line per input. When an up
 ### Error shape (under `--json`)
 
 ```json
-{"error":{"code":"AUTH_REQUIRED","message":"Not authenticated.","hint":"Run `blazedocs login`.","exit_code":3}}
+{"error":{"code":"AUTH_REQUIRED","message":"Not authenticated.","hint":"Run `blazedocs` to open setup, or set BLAZEDOCS_API_KEY.","exit_code":3}}
 ```
 
 Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERROR`, `FILE_NOT_FOUND`, `INVALID_ARGS`, `SKILL_NOT_FOUND`, `INTERNAL`.
@@ -126,7 +126,7 @@ blazedocs convert report.pdf --raw > report.md
 | 0 | Success |
 | 1 | Generic failure (file not found, network error, invalid args) |
 | 2 | Quota exceeded — upgrade to continue |
-| 3 | Authentication failed — run `blazedocs login` |
+| 3 | Authentication failed — run `blazedocs` |
 
 ## Environment variables
 
