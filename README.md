@@ -1,6 +1,6 @@
 # blazedocs
 
-Command-line tool to convert PDFs to Markdown via the [BlazeDocs](https://blazedocs.io) API. Uses Mistral OCR under the hood — preserves tables, lists, and document structure. Works on scanned/image-based PDFs.
+Command-line tool to convert PDFs to Markdown via the [BlazeDocs](https://blazedocs.io) API. Preserves tables, lists, and document structure. Works on scanned and image-based PDFs.
 
 ## Install
 

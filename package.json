@@ -1,7 +1,7 @@
 {
   "name": "blazedocs",
   "version": "2.0.0",
-  "description": "BlazeDocs CLI — convert PDFs to Markdown via the BlazeDocs API (Mistral OCR, preserves tables and structure).",
+  "description": "BlazeDocs CLI — convert PDFs to Markdown via the BlazeDocs API. Preserves tables, lists, and document structure.",
   "type": "module",
   "bin": {
     "blazedocs": "dist/bin/blazedocs.js"
