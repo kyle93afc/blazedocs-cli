@@ -20,7 +20,7 @@ npm install -g blazedocs@beta
 
 Requires Node.js 18 or later.
 
-> v3.0.0-beta.3 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
+> v3.0.0-beta.4 is on the `beta` npm tag. Stable v3.0.0 lands on `latest` after beta feedback. v2.0.3 stays on `latest` until then.
 
 ## Authenticate
 
@@ -47,6 +47,7 @@ blazedocs usage
 blazedocs whoami
 blazedocs doctor
 blazedocs skills get core        # print the full agent manual
+blazedocs skills install         # install to ~/.agents/skills/blazedocs/SKILL.md
 blazedocs skills list
 blazedocs login [--api-key-stdin]
 blazedocs logout
@@ -74,7 +75,8 @@ blazedocs skills get core
 That's 350+ lines of markdown covering every command, flag, exit code, JSON shape, and 3 common workflows. Install it as a skill:
 
 ```bash
-blazedocs skills get core > ~/.claude/skills/blazedocs/SKILL.md
+blazedocs skills install
+blazedocs skills install --target-dir ~/.claude/skills --force
 ```
 
 ### JSON envelope shape

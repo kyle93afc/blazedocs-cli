@@ -2,6 +2,14 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-beta.4] — 2026-04-24
+
+### Added
+
+- **Built-in agent skill install.** `blazedocs skills install` writes the bundled, version-matched BlazeDocs skill to the skill.sh-compatible universal path: `~/.agents/skills/blazedocs/SKILL.md`.
+- **Custom skill target support.** `blazedocs skills install --target-dir ~/.claude/skills --force` installs to another agent skill root or directly to a `blazedocs` skill directory.
+- **Interactive menu install option.** Running plain `blazedocs` now includes “Install agent skill” so humans can set up both API auth and agent docs from the welcome UI.
+
 ## [3.0.0-beta.3] — 2026-04-24
 
 ### Fixed
@@ -80,7 +88,7 @@ Pack size target: ≤250KB (was ~40KB in v2.0.3; ~146KB of deps added). CI shoul
 
 ### Test coverage
 
-20 tests in v2.0.3 → **80 tests in 3.0.0-beta.2**. New suites:
+20 tests in v2.0.3 → **83 tests in 3.0.0-beta.4**. New suites:
 - `renderers.test.ts` — 21 unit tests for json/silent/raw/clack with fake streams.
 - `upgrade-check.test.ts` — 8 tests (mocked fetch, cache TTL, corrupt-file recovery).
 - `json-stream-contract.test.ts` — 5 E2E tests proving stdout/stderr stream separation.

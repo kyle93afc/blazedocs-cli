@@ -5,6 +5,7 @@ import type { Renderer } from "../ui/renderers/types.js";
 import { convertCommand } from "./convert.js";
 import { doctorCommand } from "./doctor.js";
 import { loginCommand } from "./login.js";
+import { skillsInstallCommand } from "./skills.js";
 import { usageCommand } from "./usage.js";
 
 export interface InteractiveOptions {
@@ -43,6 +44,9 @@ export async function interactiveCommand(
       break;
     case "usage":
       await usageCommand(renderer);
+      break;
+    case "skill":
+      await skillsInstallCommand("core", {}, renderer);
       break;
     case "login":
       await loginCommand({}, renderer);

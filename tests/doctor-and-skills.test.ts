@@ -124,6 +124,38 @@ describe("skills", () => {
     expect(parsed.data.name).toBe("core");
     expect(parsed.data.content).toContain("BlazeDocs");
   });
+
+  it("skills install writes to the skill.sh-compatible default path", async () => {
+    const env = testEnv();
+    const home = env.HOME!;
+    const res = await runCli(["--json", "skills", "install"], env);
+    expect(res.exitCode).toBe(0);
+    expect(res.stderr).toBe("");
+    const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
+    expect(parsed.data.ok).toBe(true);
+    expect(parsed.data.path).toBe(path.join(home, ".agents", "skills", "blazedocs", "SKILL.md"));
+    expect(fs.readFileSync(parsed.data.path, "utf8")).toContain("name: blazedocs");
+  });
+
+  it("skills install --target-dir writes under a custom skill root", async () => {
+    const env = testEnv();
+    const root = path.join(env.HOME!, "custom-skills");
+    const res = await runCli(["--json", "skills", "install", "--target-dir", root], env);
+    expect(res.exitCode).toBe(0);
+    const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
+    expect(parsed.data.path).toBe(path.join(root, "blazedocs", "SKILL.md"));
+    expect(fs.existsSync(parsed.data.path)).toBe(true);
+  });
+
+  it("skills install --target-dir skips existing custom installs unless forced", async () => {
+    const env = testEnv();
+    const root = path.join(env.HOME!, "custom-skills");
+    await runCli(["--json", "skills", "install", "--target-dir", root], env);
+    const res = await runCli(["--json", "skills", "install", "--target-dir", root], env);
+    expect(res.exitCode).toBe(0);
+    const parsed = JSON.parse(res.stdout.trim().split("\n")[0]);
+    expect(parsed.data.skipped).toBe(true);
+  });
 });
 
 describe("doctor", () => {

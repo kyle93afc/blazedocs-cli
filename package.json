@@ -1,6 +1,6 @@
 {
   "name": "blazedocs",
-  "version": "3.0.0-beta.3",
+  "version": "3.0.0-beta.4",
   "description": "Agent-first CLI for PDF → Markdown. JSON everywhere, --raw, structured errors. Humans get the polish too.",
   "type": "module",
   "bin": {

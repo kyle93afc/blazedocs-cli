@@ -59,6 +59,7 @@ echo "$NEW_KEY" | blazedocs login --api-key-stdin
 | \`logout\` | Clear stored credentials. |
 | \`doctor\` | Run self-diagnostic checks (auth, network, disk, etc). |
 | \`skills get core\` | Print this manual. |
+| \`skills install\` | Install this manual to \`~/.agents/skills/blazedocs/SKILL.md\`. |
 | \`skills list\` | List available skills. |
 
 ## Global flags
@@ -170,6 +171,22 @@ JSON shape:
 
 Status enum: \`pass | warn | fail\`. \`overall\` is \`fail\` if any check failed,
 \`warn\` if any warned, \`pass\` otherwise.
+
+## skills
+
+\`\`\`bash
+blazedocs skills get core --raw > SKILL.md
+blazedocs skills install
+blazedocs skills install --target-dir ~/.claude/skills --force
+\`\`\`
+
+\`skills install\` writes the bundled, version-matched skill to the local
+skill.sh-compatible universal path by default:
+\`~/.agents/skills/blazedocs/SKILL.md\`.
+
+\`--target-dir\` accepts either a skill root such as \`~/.claude/skills\` or the
+final \`blazedocs\` skill directory. Custom installs skip existing files unless
+\`--force\` is set.
 
 **Agents: after a failed convert, run \`doctor --json\` to pick the recovery path:**
 - If Auth failed → \`login --api-key-stdin\`.

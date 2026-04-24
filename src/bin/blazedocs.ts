@@ -18,7 +18,7 @@
 import { Command, Option } from "commander";
 import type { Renderer } from "../ui/renderers/types.js";
 
-const VERSION = "3.0.0-beta.3";
+const VERSION = "3.0.0-beta.4";
 const KNOWN_COMMANDS = new Set([
   "login",
   "logout",
@@ -141,6 +141,20 @@ skillsCmd
     await run(global, async (ctx) => {
       const { skillsListCommand } = await import("../commands/skills.js");
       await skillsListCommand(ctx.renderer);
+    });
+  });
+
+skillsCmd
+  .command("install")
+  .description("Install the bundled BlazeDocs skill locally (default: ~/.agents/skills)")
+  .argument("[name]", "Skill name", "core")
+  .option("--target-dir <dir>", "Skill root or blazedocs skill directory")
+  .option("--force", "Overwrite an existing skill file")
+  .action(async (name: string, opts: { targetDir?: string; force?: boolean }) => {
+    const global = program.opts<GlobalFlags>();
+    await run(global, async (ctx) => {
+      const { skillsInstallCommand } = await import("../commands/skills.js");
+      await skillsInstallCommand(name, opts, ctx.renderer);
     });
   });
 

@@ -56,7 +56,7 @@ export async function promptApiKey(): Promise<string> {
   return String(value).trim();
 }
 
-export type MainMenuChoice = "convert" | "usage" | "login" | "doctor" | "exit";
+export type MainMenuChoice = "convert" | "usage" | "skill" | "login" | "doctor" | "exit";
 
 export async function promptMainMenu(hasAuth: boolean): Promise<MainMenuChoice> {
   const value = await select<MainMenuChoice>({
@@ -64,6 +64,7 @@ export async function promptMainMenu(hasAuth: boolean): Promise<MainMenuChoice> 
     options: [
       { value: "convert", label: "Convert a PDF" },
       { value: "usage", label: "Check usage" },
+      { value: "skill", label: "Install agent skill" },
       { value: "login", label: hasAuth ? "Switch API key" : "Log in" },
       { value: "doctor", label: "Run doctor" },
       { value: "exit", label: "Exit" },
