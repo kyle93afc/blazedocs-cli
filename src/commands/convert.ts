@@ -47,6 +47,14 @@ export async function convertCommand(
     throw new Error("No input files specified. Example: blazedocs convert file.pdf");
   }
 
+  for (const input of inputs) {
+    if (input.startsWith("http://") || input.startsWith("https://")) continue;
+    const resolved = path.resolve(input);
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`File not found: ${resolved}`);
+    }
+  }
+
   const hasOutput = Boolean(opts.output);
   const outputIsDir = hasOutput && isDirectoryTarget(opts.output!);
   const multipleInputs = inputs.length > 1;

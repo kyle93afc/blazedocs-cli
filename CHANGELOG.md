@@ -2,6 +2,13 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] — 2026-04-24
+
+### Fixed
+
+- **Duplicate auth hint.** `blazedocs whoami` (and other commands) printed "Run `blazedocs login` or set BLAZEDOCS_API_KEY." twice on `AuthError` — once as part of the error message, once from an extra hint block in the error handler. The redundant block has been removed. Covered by a new regression test.
+- **Progress message printed before file validation.** `blazedocs convert /does/not/exist.pdf` printed "Converting /does/not/exist.pdf..." before discovering the file was missing and erroring out. Local-file existence is now validated up front, so `File not found:` fires cleanly without the misleading progress line. Covered by a new regression test.
+
 ## [2.0.0] — 2026-04-24
 
 ### Breaking

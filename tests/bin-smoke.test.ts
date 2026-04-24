@@ -35,4 +35,26 @@ describe("binary smoke tests", () => {
     expect(res.status).not.toBe(0);
     expect(res.stderr + res.stdout).toMatch(/unknown option/i);
   });
+
+  it("prints the auth hint exactly once on AuthError (regression for v2.0.0 duplicate hint)", () => {
+    const res = spawnSync(
+      process.execPath,
+      [BIN, "whoami"],
+      { encoding: "utf8", env: { ...process.env, BLAZEDOCS_API_KEY: "" } },
+    );
+    expect(res.status).toBe(3);
+    const hintCount = (res.stderr.match(/blazedocs login/g) || []).length;
+    expect(hintCount).toBe(1);
+  });
+
+  it("fails fast on missing local file without printing 'Converting...' (regression for v2.0.0)", () => {
+    const res = spawnSync(
+      process.execPath,
+      [BIN, "convert", "/tmp/definitely-does-not-exist-xyz.pdf"],
+      { encoding: "utf8", env: { ...process.env, BLAZEDOCS_API_KEY: "bd_live_dummy" } },
+    );
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toMatch(/File not found/);
+    expect(res.stderr).not.toMatch(/Converting/);
+  });
 });

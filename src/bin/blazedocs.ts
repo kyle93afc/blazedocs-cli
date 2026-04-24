@@ -5,9 +5,9 @@ import { logoutCommand } from "../commands/logout.js";
 import { whoamiCommand } from "../commands/whoami.js";
 import { usageCommand } from "../commands/usage.js";
 import { convertCommand } from "../commands/convert.js";
-import { AuthError, QuotaExceededError, exitCodeFor } from "../errors.js";
+import { QuotaExceededError, exitCodeFor } from "../errors.js";
 
-const VERSION = "2.0.0";
+const VERSION = "2.0.1";
 
 const program = new Command();
 program
@@ -69,9 +69,6 @@ async function run(fn: () => Promise<void>): Promise<void> {
     process.stderr.write(`${message}\n`);
     if (e instanceof QuotaExceededError && e.upgradeUrl) {
       process.stderr.write(`Upgrade: ${e.upgradeUrl}\n`);
-    }
-    if (e instanceof AuthError) {
-      process.stderr.write("Run `blazedocs login` or set BLAZEDOCS_API_KEY.\n");
     }
     process.exit(exitCodeFor(e));
   }
