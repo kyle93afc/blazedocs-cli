@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { convertPdf, normalizeUsage } from "../src/api.js";
+import { convertPdf, normalizeUsage, displayTier } from "../src/api.js";
 import { AuthError, QuotaExceededError, NetworkError, ApiError } from "../src/errors.js";
 
 function mkTempPdf(): string {
@@ -100,7 +100,8 @@ describe("normalizeUsage — handles both API response shapes (regression for v2
     expect(result.pagesUsed).toBe(859);
     expect(result.pagesLimit).toBe(10000);
     expect(result.pagesRemaining).toBe(9141);
-    expect(result.tier).toBe("business");
+    // normalizeUsage applies displayTier() — "business" slug maps to "Enterprise" SKU name.
+    expect(result.tier).toBe("Enterprise");
   });
 
   it("parses flat POST /convert response (pages_used / pages_limit / pages_remaining)", () => {
@@ -113,7 +114,7 @@ describe("normalizeUsage — handles both API response shapes (regression for v2
     expect(result.pagesUsed).toBe(45);
     expect(result.pagesLimit).toBe(500);
     expect(result.pagesRemaining).toBe(455);
-    expect(result.tier).toBe("starter");
+    expect(result.tier).toBe("Starter");
   });
 
   it("computes remaining when nested shape omits pages_remaining", () => {
@@ -132,5 +133,30 @@ describe("normalizeUsage — handles both API response shapes (regression for v2
     expect(result.pagesUsed).toBe(0);
     expect(result.pagesLimit).toBe(0);
     expect(result.tier).toBe("unknown");
+  });
+});
+
+describe("displayTier — maps internal slug to public SKU name", () => {
+  it('maps "business" to "Enterprise" (regression for v2.0.2 tier mismatch)', () => {
+    expect(displayTier("business")).toBe("Enterprise");
+  });
+
+  it('maps "enterprise" to "Enterprise"', () => {
+    expect(displayTier("enterprise")).toBe("Enterprise");
+  });
+
+  it("preserves other known slugs", () => {
+    expect(displayTier("free")).toBe("Free");
+    expect(displayTier("starter")).toBe("Starter");
+    expect(displayTier("pro")).toBe("Pro");
+  });
+
+  it("passes through unknown tier slugs unchanged", () => {
+    expect(displayTier("something-new")).toBe("something-new");
+  });
+
+  it('returns "unknown" when tier is missing', () => {
+    expect(displayTier(undefined)).toBe("unknown");
+    expect(displayTier(null)).toBe("unknown");
   });
 });

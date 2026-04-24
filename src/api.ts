@@ -40,6 +40,28 @@ export interface UsageSnapshot {
   [k: string]: unknown;
 }
 
+/**
+ * Map the API's internal tier slug to the public display name.
+ * The backend currently uses "business" as the internal slug for the
+ * public "Enterprise" SKU — this map keeps the CLI output aligned with
+ * what users see in the dashboard and on the pricing page.
+ *
+ * Remove this map once the server normalizes the tier field (tracked
+ * in the monorepo TODOS.md under "Unified error contract for /api/v1/*").
+ */
+const TIER_DISPLAY_NAMES: Record<string, string> = {
+  free: "Free",
+  starter: "Starter",
+  pro: "Pro",
+  business: "Enterprise",
+  enterprise: "Enterprise",
+};
+
+export function displayTier(tier?: string | null): string {
+  if (!tier) return "unknown";
+  return TIER_DISPLAY_NAMES[tier.toLowerCase()] ?? tier;
+}
+
 /** Normalize a usage response regardless of shape (flat or nested). */
 export function normalizeUsage(snapshot: UsageSnapshot): {
   pagesUsed: number;
@@ -51,7 +73,7 @@ export function normalizeUsage(snapshot: UsageSnapshot): {
   const pagesLimit = snapshot.pages_limit ?? snapshot.limits?.pages ?? 0;
   const pagesRemaining =
     snapshot.pages_remaining ?? Math.max(pagesLimit - pagesUsed, 0);
-  const tier = snapshot.tier ?? "unknown";
+  const tier = displayTier(snapshot.tier);
   return { pagesUsed, pagesLimit, pagesRemaining, tier };
 }
 

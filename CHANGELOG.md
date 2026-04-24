@@ -2,6 +2,12 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.0.3] — 2026-04-24
+
+### Fixed
+
+- **Tier name now matches the public billing SKU.** The backend returns `tier: "business"` as an internal slug for the public "Enterprise" plan. `blazedocs whoami` and `blazedocs usage` previously echoed the raw slug, so a paying Enterprise customer would see `business plan` in the CLI even though they were looking at Enterprise on the pricing page and in the dashboard. Output now reads `Enterprise plan — …`. A `displayTier()` helper is exported for anyone doing their own mapping. Remove the CLI-side map once the server unifies the tier field (tracked in the monorepo TODOs under "Unified error contract").
+
 ## [2.0.2] — 2026-04-24
 
 ### Fixed
