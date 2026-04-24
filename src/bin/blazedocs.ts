@@ -16,6 +16,7 @@
  *      with zero bytes on stdout.
  */
 import { Command, Option } from "commander";
+import type { Renderer } from "../ui/renderers/types.js";
 
 const VERSION = "3.0.0-beta.1";
 
@@ -50,10 +51,9 @@ program
   .option("--api-key-stdin", "Read the API key from stdin (preferred for automation)")
   .action(async (opts: { apiKeyStdin?: boolean }) => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (ctx) => {
+    await run(global, async (_ctx) => {
       const { loginCommand } = await import("../commands/login.js");
       await loginCommand({ apiKeyStdin: opts.apiKeyStdin });
-      ctx.noOp();
     });
   });
 
@@ -62,10 +62,9 @@ program
   .description("Clear stored credentials")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (ctx) => {
+    await run(global, async (_ctx) => {
       const { logoutCommand } = await import("../commands/logout.js");
       logoutCommand();
-      ctx.noOp();
     });
   });
 
@@ -74,10 +73,9 @@ program
   .description("Show the authenticated user and plan")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (ctx) => {
+    await run(global, async (_ctx) => {
       const { whoamiCommand } = await import("../commands/whoami.js");
       await whoamiCommand();
-      ctx.noOp();
     });
   });
 
@@ -86,10 +84,9 @@ program
   .description("Show current-month page usage and quota")
   .action(async () => {
     const global = program.opts<GlobalFlags>();
-    await run(global, async (ctx) => {
+    await run(global, async (_ctx) => {
       const { usageCommand } = await import("../commands/usage.js");
       await usageCommand({ json: global.json });
-      ctx.noOp();
     });
   });
 
@@ -102,8 +99,7 @@ program
     const global = program.opts<GlobalFlags>();
     await run(global, async (ctx) => {
       const { convertCommand } = await import("../commands/convert.js");
-      await convertCommand(inputs, { ...opts, json: global.json, silent: global.silent });
-      ctx.noOp();
+      await convertCommand(inputs, opts, ctx.renderer);
     });
   });
 
@@ -115,7 +111,7 @@ program
  */
 async function run(
   global: GlobalFlags,
-  fn: (ctx: { noOp: () => void }) => Promise<void>,
+  fn: (ctx: { renderer: Renderer }) => Promise<void>,
 ): Promise<void> {
   // Lazy import — these are never loaded on --version / --help paths.
   const { makeRenderer } = await import("../ui/renderer-factory.js");
@@ -132,7 +128,7 @@ async function run(
   const renderer = makeRenderer({ opts: global, upgradeCheck });
 
   try {
-    await fn({ noOp: () => undefined });
+    await fn({ renderer });
     await renderer.close();
   } catch (e) {
     let err = e;

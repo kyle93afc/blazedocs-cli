@@ -44,16 +44,44 @@ export class ClackRenderer implements Renderer {
   }
 
   success(payload: unknown, _meta?: ResultMeta): void {
-    // Convert's success line is a specific format. Other commands supply their own.
-    // Default: if payload has a `message` string, emit it with a ✓.
     if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
+
+      // ConvertResult shape detection (has markdown + file_name + page_count).
+      if (
+        typeof obj.markdown === "string" &&
+        typeof obj.file_name === "string" &&
+        typeof obj.page_count === "number"
+      ) {
+        const pages = obj.page_count;
+        const remaining =
+          (obj.usage as { pages_remaining?: number } | undefined)?.pages_remaining;
+        const writtenTo = typeof obj.written_to === "string" ? obj.written_to : undefined;
+
+        if (writtenTo) {
+          // File was written to disk. Emit a 1-line summary.
+          const quotaHint = remaining != null ? ` · ${remaining} remaining this month` : "";
+          this.stderr.write(
+            `${c.success("✓")} Wrote ${c.bold(writtenTo)} (${pages} pages${quotaHint})\n`,
+          );
+        } else {
+          // No --output. Stream markdown to stdout (v2.0.3 parity), summary on stderr.
+          this.stdout.write(obj.markdown as string);
+          if (!(obj.markdown as string).endsWith("\n")) this.stdout.write("\n");
+          const quotaHint = remaining != null ? ` · ${remaining} remaining this month` : "";
+          this.stderr.write(
+            `${c.success("✓")} ${c.bold(String(obj.file_name))} (${pages} pages${quotaHint})\n`,
+          );
+        }
+        return;
+      }
+
+      // Generic shape with `message`.
       if (typeof obj.message === "string") {
         this.stderr.write(`${c.success("✓")} ${obj.message}\n`);
         return;
       }
     }
-    // Stringly: just success-tag it.
     this.stderr.write(`${c.success("✓")} ${String(payload)}\n`);
   }
 

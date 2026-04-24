@@ -37,19 +37,20 @@ export class SilentRenderer implements Renderer {
   }
 
   success(payload: unknown, _meta?: ResultMeta): void {
-    // Back-compat: convert command (v2.0.3 shape) passed full markdown string
-    // via result.markdown. Silent renderer writes that to stdout to preserve
-    // `blazedocs convert foo.pdf | cat` pipe semantics.
+    // Back-compat: v2.0.3 `convert foo.pdf | cat` streamed markdown to stdout.
+    // Preserve that pipe contract ONLY when no file was written. When `-o`
+    // wrote to disk, SilentRenderer stays silent (stdout empty) — matches v2.0.3.
     if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
+      const hasWrittenTo = typeof obj.written_to === "string";
       const md = obj.markdown;
-      if (typeof md === "string") {
+      if (typeof md === "string" && !hasWrittenTo) {
         this.stdout.write(md);
         if (!md.endsWith("\n")) this.stdout.write("\n");
         return;
       }
     }
-    // Otherwise silent renderer is a no-op on success. Caller writes to file.
+    // Otherwise silent renderer is a no-op on success.
   }
 
   error(err: BlazeDocsError): void {
