@@ -1,0 +1,56 @@
+{
+  "name": "blazedocs",
+  "version": "2.0.0",
+  "description": "BlazeDocs CLI — convert PDFs to Markdown via the BlazeDocs API (Mistral OCR, preserves tables and structure).",
+  "type": "module",
+  "bin": {
+    "blazedocs": "dist/bin/blazedocs.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "blazedocs",
+    "pdf",
+    "pdf-to-markdown",
+    "markdown",
+    "ocr",
+    "cli",
+    "document-processing",
+    "obsidian",
+    "rag",
+    "agent-skills"
+  ],
+  "author": "BlazeDocs",
+  "homepage": "https://blazedocs.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyle93afc/blazedocs-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kyle93afc/blazedocs-cli/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
