@@ -66,14 +66,11 @@ If not authenticated, the user has three options. Do NOT pass the key on the com
 
 2. **Pipe from stdin** (preferred for automation):
    ```bash
-   echo "$MY_KEY" | npx blazedocs login --api-key-stdin
+   printf '%s' "$BLAZEDOCS_API_KEY" | npx blazedocs login --api-key-stdin
    ```
 
 3. **Environment variable** (preferred for CI/agents):
-   ```bash
-   export BLAZEDOCS_API_KEY="bd_live_..."
-   ```
-   The CLI reads `BLAZEDOCS_API_KEY` on every invocation. No `login` needed. Precedence - env var beats config file.
+   Configure `BLAZEDOCS_API_KEY` in the process environment. The CLI reads it on every invocation, so no `login` is needed. Precedence - env var beats config file.
 
 API keys start with `bd_live_` or `bd_test_`. Users get one from https://blazedocs.io/dashboard/api (requires a free BlazeDocs account).
 

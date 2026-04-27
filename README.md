@@ -54,17 +54,14 @@ bun add -g blazedocs
 BlazeDocs requires an API key for conversion. Get one at https://blazedocs.io/dashboard/api.
 
 ```bash
-# Interactive setup
+# Set up local credentials
 npx blazedocs
 
-# Agent/CI setup
-echo "$BLAZEDOCS_API_KEY" | npx blazedocs login --api-key-stdin
-
-# Or use an env var directly
-export BLAZEDOCS_API_KEY="bd_live_..."
+# Verify credentials
+npx blazedocs whoami
 ```
 
-Keys are stored at `~/.blazedocs/config.json` with mode `0600`. `BLAZEDOCS_API_KEY` wins over the config file.
+For CI and agents, set `BLAZEDOCS_API_KEY` in the environment. Keys stored by `login` live at `~/.blazedocs/config.json` with mode `0600`; `BLAZEDOCS_API_KEY` wins over the config file.
 
 `3.0.0` is the current stable release on the `latest` npm tag.
 
