@@ -2,7 +2,9 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
-## [3.0.0-beta.7] — 2026-04-24
+## [3.0.0] — 2026-04-24
+
+Stable release of the v3 agent-first CLI.
 
 ### Added
 
@@ -13,7 +15,7 @@ All notable changes to the `blazedocs` CLI are documented here. This project fol
 
 - **Unresolved generated image references are stripped from markdown.** Dead `![img-0.jpeg](img-0.jpeg)`-style references no longer poison downstream agent/RAG ingestion.
 - **API error bodies now reach stderr.** JSON, raw, silent, and TTY renderers include the upstream response body when the API provides one, with clearer 413 retry guidance.
-- **Update checks now see beta releases.** The checker reads npm dist-tags instead of only `/latest`, so users on stable `2.0.3` are told about `3.0.0-beta.7`.
+- **Update checks now see stable v3 releases.** The checker reads registry versions and dist-tags instead of only `/latest`, so users on `2.0.3` are told about `3.0.0`.
 - **Skill install now uses standard location discovery.** `blazedocs skills install` detects existing project/user `.agents/skills` and `.claude/skills` roots instead of always writing to `~/.agents/skills`.
 - **README now points users to skill.sh first.** Skill installation docs lead with `npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs`, with the bundled installer documented as the fallback.
 
@@ -103,7 +105,7 @@ All notable changes to the `blazedocs` CLI are documented here. This project fol
 
 ### Deferred
 
-- `blazedocs skills add <target-dir>` — writes a shell-out stub pointing at `skills get core` (codex outside-voice review flagged the security surface; beta.1 ships without it).
+- `blazedocs skills add <target-dir>` — writes a shell-out stub pointing at `skills get core` (codex outside-voice review flagged the security surface; v3.0.0 ships without it).
 - Full `@clack/prompts` TTY polish: ANSI banner, boxed welcome/usage/whoami, interactive no-args menu, `password()` prompt for login. Renderer interface stays stable; polish upgrades in place.
 - Markdown preview in terminal after convert (TTY only).
 - Clipboard copy on success.
@@ -121,7 +123,7 @@ Pack size target: ≤250KB (was ~40KB in v2.0.3; ~146KB of deps added). CI shoul
 
 ### Test coverage
 
-20 tests in v2.0.3 → **86 tests in 3.0.0-beta.5**. New suites:
+20 tests in v2.0.3 → **86 tests in 3.0.0**. New suites:
 - `renderers.test.ts` — 21 unit tests for json/silent/raw/clack with fake streams.
 - `upgrade-check.test.ts` — 8 tests (mocked fetch, cache TTL, corrupt-file recovery).
 - `json-stream-contract.test.ts` — 5 E2E tests proving stdout/stderr stream separation.

@@ -16,6 +16,10 @@ export interface UpgradeInfo {
   current: string;
   latest?: string;
   install_cmd?: string;
+  install_cmds?: Array<{
+    manager: "npm" | "pnpm" | "yarn" | "bun";
+    command: string;
+  }>;
 }
 
 export interface ResultMeta {

@@ -22,6 +22,9 @@ const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}`;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const FETCH_TIMEOUT_MS = 500;
 const CACHE_SCHEMA_VERSION = 2;
+const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun"] as const;
+
+type PackageManager = (typeof PACKAGE_MANAGERS)[number];
 
 interface CacheShape {
   schema_version: number;
@@ -77,6 +80,37 @@ function shouldSkip(): boolean {
   // Skip when we're in a non-TTY, non-JSON context — nobody will read the output.
   // Caller responsibility: pass --json to force the check to fire in piped contexts.
   return false;
+}
+
+function commandForPackageManager(manager: PackageManager, version: string): string {
+  switch (manager) {
+    case "bun":
+      return `bun add -g ${PACKAGE_NAME}@${version}`;
+    case "pnpm":
+      return `pnpm add -g ${PACKAGE_NAME}@${version}`;
+    case "yarn":
+      return `yarn global add ${PACKAGE_NAME}@${version}`;
+    case "npm":
+      return `npm i -g ${PACKAGE_NAME}@${version}`;
+  }
+}
+
+function detectPackageManager(): PackageManager {
+  const userAgent = process.env.npm_config_user_agent ?? "";
+  const execPath = process.env.npm_execpath ?? "";
+  const source = `${userAgent} ${execPath}`.toLowerCase();
+
+  if (source.includes("bun")) return "bun";
+  if (source.includes("pnpm")) return "pnpm";
+  if (source.includes("yarn")) return "yarn";
+  return "npm";
+}
+
+function installCommands(version: string): NonNullable<UpgradeInfo["install_cmds"]> {
+  return PACKAGE_MANAGERS.map((manager) => ({
+    manager,
+    command: commandForPackageManager(manager, version),
+  }));
 }
 
 function pickHighestVersion(versions: string[]): string | null {
@@ -157,6 +191,7 @@ export async function checkForUpgrade(currentVersion: string): Promise<UpgradeIn
     available,
     current: currentVersion,
     latest,
-    install_cmd: available ? `npm i -g ${PACKAGE_NAME}@${latest}` : undefined,
+    install_cmd: available ? commandForPackageManager(detectPackageManager(), latest) : undefined,
+    install_cmds: available ? installCommands(latest) : undefined,
   };
 }

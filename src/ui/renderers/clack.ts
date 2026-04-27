@@ -1,7 +1,7 @@
 /**
  * Clack Renderer: TTY human-facing mode.
  *
- * v3.0-beta.1 ships a minimal version: colored lines on stderr for progress,
+ * v3.0.0 ships a minimal version: colored lines on stderr for progress,
  * a rendered boxed success line on stderr, a boxed error on stderr. The
  * banner, first-run wizard, boxed quota display, and @clack/prompts spinner
  * integration land in Phase 7.
@@ -139,6 +139,10 @@ export class ClackRenderer implements Renderer {
         );
         if (info.install_cmd) {
           safeWrite(this.stderr,`  ${c.accent("→")} ${c.bold(info.install_cmd)}\n`);
+        }
+        const alternatives = info.install_cmds?.filter(({ command }) => command !== info.install_cmd);
+        if (alternatives?.length) {
+          safeWrite(this.stderr,`  ${c.muted("Also: ")}${c.muted(alternatives.map(({ command }) => command).join(" · "))}\n`);
         }
       }
     } catch {

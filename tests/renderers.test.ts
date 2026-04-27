@@ -107,6 +107,10 @@ describe("JsonRenderer", () => {
         current: "3.0.0",
         latest: "3.1.0",
         install_cmd: "npm i -g blazedocs@latest",
+        install_cmds: [
+          { manager: "npm", command: "npm i -g blazedocs@latest" },
+          { manager: "bun", command: "bun add -g blazedocs@latest" },
+        ],
       }),
     });
     r.success({ ok: true });
@@ -116,6 +120,10 @@ describe("JsonRenderer", () => {
     const meta = JSON.parse(lines[1]);
     expect(meta.type).toBe("meta");
     expect(meta.upgrade.latest).toBe("3.1.0");
+    expect(meta.upgrade.install_cmds).toContainEqual({
+      manager: "bun",
+      command: "bun add -g blazedocs@latest",
+    });
   });
 
   it("does NOT emit meta when upgrade check returns not-available", async () => {
@@ -265,11 +273,18 @@ describe("ClackRenderer", () => {
         current: "3.0.0",
         latest: "3.1.0",
         install_cmd: "npm i -g blazedocs@latest",
+        install_cmds: [
+          { manager: "npm", command: "npm i -g blazedocs@latest" },
+          { manager: "pnpm", command: "pnpm add -g blazedocs@latest" },
+          { manager: "yarn", command: "yarn global add blazedocs@latest" },
+          { manager: "bun", command: "bun add -g blazedocs@latest" },
+        ],
       }),
     });
     r.success({ message: "done" });
     await r.close();
     expect(s.stderr.text).toMatch(/3\.1\.0/);
     expect(s.stderr.text).toMatch(/npm i -g/);
+    expect(s.stderr.text).toMatch(/bun add -g/);
   });
 });

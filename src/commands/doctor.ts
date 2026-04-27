@@ -3,7 +3,7 @@
  *
  * Runs 7 checks in parallel, emits a structured report. Agents call
  * `doctor --json` after a failure to decide: retry, re-auth, or escalate.
- * Humans get a boxed per-check list in Phase 7; beta 1 uses the generic
+ * Humans get a boxed per-check list in Phase 7; the initial v3 release uses the generic
  * SilentRenderer format.
  *
  * Check status enum: "pass" | "warn" | "fail". "warn" is reserved for
@@ -249,11 +249,12 @@ async function checkCliVersion(currentVersion: string): Promise<DoctorCheck> {
       };
     }
     if (info.available) {
+      const commands = info.install_cmds?.map(({ command }) => command).join(" | ");
       return {
         name: "CLI version",
         status: "warn",
         detail: `v${currentVersion} — latest is v${info.latest}`,
-        hint: info.install_cmd ?? "Upgrade via npm.",
+        hint: commands ? `Upgrade with: ${commands}` : info.install_cmd ?? "Upgrade with npm, pnpm, yarn, or bun.",
       };
     }
     return { name: "CLI version", status: "pass", detail: `v${currentVersion} (latest)` };

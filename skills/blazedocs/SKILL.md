@@ -17,7 +17,7 @@ Before running any other command, confirm the CLI is available:
 npx blazedocs --version
 ```
 
-Expected output - a semver string like `2.0.0`. If this fails with "command not found" or similar, the user does not have the CLI installed. Tell them to run `npx blazedocs <command>` directly (no install needed) or `npm install -g blazedocs` for a persistent install. Do not attempt to install globally without asking.
+Expected output - a semver string like `2.0.0`. If this fails with "command not found" or similar, the user does not have the CLI installed. Tell them to run a package-runner command directly, such as `npx blazedocs <command>`, `pnpm dlx blazedocs <command>`, `yarn dlx blazedocs <command>`, or `bunx blazedocs <command>` (no install needed). For a persistent install, suggest `npm i -g blazedocs`, `pnpm add -g blazedocs`, `yarn global add blazedocs`, or `bun add -g blazedocs`. Do not attempt to install globally without asking.
 
 Requires Node.js 18 or later. If `npx` itself is missing, the user must install Node.js first.
 
@@ -32,7 +32,7 @@ skill.sh search indexing catches up. If you are developing BlazeDocs locally or
 need to install directly from the packaged CLI, run:
 
 ```bash
-npx blazedocs@beta skills install
+npx blazedocs skills install
 ```
 
 The fallback CLI installer auto-detects the target using the standard agent skill install
@@ -42,7 +42,7 @@ creates `./.agents/skills/blazedocs/SKILL.md`. For a specific agent skill root,
 use:
 
 ```bash
-npx blazedocs@beta skills install --target-dir ~/.claude/skills --force
+npx blazedocs skills install --target-dir ~/.claude/skills --force
 ```
 
 ## 2. Authentication

@@ -10,7 +10,7 @@ import type { Renderer } from "../ui/renderers/types.js";
  *   - JsonRenderer:   {"type":"result","data":<full snapshot + normalized>} on stdout.
  *   - RawRenderer:    plain `<used>/<limit>\n` on stdout.
  *   - SilentRenderer: v2.0.3-parity 4-line key/value dump on stdout.
- *   - ClackRenderer:  Phase 7 upgrades to a quota-bar box; beta 1 uses the
+ *   - ClackRenderer:  Phase 7 upgrades to a quota-bar box; the initial v3 release uses the
  *                     SilentRenderer's 4-line format via the default generic
  *                     success handler.
  */

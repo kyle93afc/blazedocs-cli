@@ -7,11 +7,15 @@ const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "bd-upgrade-test-"));
 const origHome = process.env.HOME;
 const origUserProfile = process.env.USERPROFILE;
 const origSkip = process.env.BLAZEDOCS_SKIP_UPDATE_CHECK;
+const origUserAgent = process.env.npm_config_user_agent;
+const origExecPath = process.env.npm_execpath;
 
 beforeEach(() => {
   process.env.HOME = tmpHome;
   process.env.USERPROFILE = tmpHome;
   delete process.env.BLAZEDOCS_SKIP_UPDATE_CHECK;
+  delete process.env.npm_config_user_agent;
+  delete process.env.npm_execpath;
   try {
     fs.rmSync(path.join(tmpHome, ".blazedocs"), { recursive: true, force: true });
   } catch {
@@ -27,6 +31,10 @@ afterEach(() => {
   else delete process.env.USERPROFILE;
   if (origSkip !== undefined) process.env.BLAZEDOCS_SKIP_UPDATE_CHECK = origSkip;
   else delete process.env.BLAZEDOCS_SKIP_UPDATE_CHECK;
+  if (origUserAgent !== undefined) process.env.npm_config_user_agent = origUserAgent;
+  else delete process.env.npm_config_user_agent;
+  if (origExecPath !== undefined) process.env.npm_execpath = origExecPath;
+  else delete process.env.npm_execpath;
   vi.restoreAllMocks();
 });
 
@@ -55,10 +63,33 @@ describe("checkForUpgrade", () => {
     expect(result?.available).toBe(true);
     expect(result?.current).toBe("3.0.0");
     expect(result?.latest).toBe("3.1.0");
-    expect(result?.install_cmd).toMatch(/npm i -g/);
+    expect(result?.install_cmd).toBe("npm i -g blazedocs@3.1.0");
+    expect(result?.install_cmds).toEqual([
+      { manager: "npm", command: "npm i -g blazedocs@3.1.0" },
+      { manager: "pnpm", command: "pnpm add -g blazedocs@3.1.0" },
+      { manager: "yarn", command: "yarn global add blazedocs@3.1.0" },
+      { manager: "bun", command: "bun add -g blazedocs@3.1.0" },
+    ]);
   });
 
-  it("uses the highest dist-tag version so beta updates are visible from stable installs", async () => {
+  it("prefers the invoking package manager in install_cmd", async () => {
+    process.env.npm_config_user_agent = "bun/1.2.0 npm/? node/v22 darwin arm64";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ version: "3.1.0" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+    const { checkForUpgrade } = await import("../src/ui/upgrade-check.js");
+    const result = await checkForUpgrade("3.0.0");
+    expect(result?.install_cmd).toBe("bun add -g blazedocs@3.1.0");
+  });
+
+  it("uses the highest registry version so stable updates are visible from older installs", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -66,7 +97,7 @@ describe("checkForUpgrade", () => {
           new Response(JSON.stringify({
             "dist-tags": {
               latest: "2.0.3",
-              beta: "3.0.0-beta.7",
+              next: "3.0.0",
             },
           }), {
             status: 200,
@@ -77,8 +108,8 @@ describe("checkForUpgrade", () => {
     const { checkForUpgrade } = await import("../src/ui/upgrade-check.js");
     const result = await checkForUpgrade("2.0.3");
     expect(result?.available).toBe(true);
-    expect(result?.latest).toBe("3.0.0-beta.7");
-    expect(result?.install_cmd).toContain("3.0.0-beta.7");
+    expect(result?.latest).toBe("3.0.0");
+    expect(result?.install_cmd).toContain("3.0.0");
   });
 
   it("returns available=false when current === latest", async () => {
@@ -188,7 +219,7 @@ describe("checkForUpgrade", () => {
       "fetch",
       vi.fn(
         async () =>
-          new Response(JSON.stringify({ "dist-tags": { latest: "2.0.3", beta: "3.0.0-beta.7" } }), {
+          new Response(JSON.stringify({ "dist-tags": { latest: "2.0.3", next: "3.0.0" } }), {
             status: 200,
             headers: { "content-type": "application/json" },
           }),
@@ -198,8 +229,8 @@ describe("checkForUpgrade", () => {
     const { checkForUpgrade } = await import("../src/ui/upgrade-check.js");
     const result = await checkForUpgrade("2.0.3");
 
-    expect(result?.latest).toBe("3.0.0-beta.7");
+    expect(result?.latest).toBe("3.0.0");
     const parsed = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-    expect(parsed.latest).toBe("3.0.0-beta.7");
+    expect(parsed.latest).toBe("3.0.0");
   });
 });

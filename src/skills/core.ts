@@ -12,7 +12,7 @@
 export const CORE_SKILL = `---
 name: blazedocs
 description: Convert PDFs to Markdown via the BlazeDocs API. Use when you need clean markdown from any PDF — local files, URLs, batches. Agent-first CLI with --json everywhere, --raw for pipelines, structured errors with stable codes, and a doctor command for self-diagnosis. Token-efficient by default.
-allowed-tools: Bash(blazedocs:*), Bash(npx blazedocs:*)
+allowed-tools: Bash(blazedocs:*), Bash(npx blazedocs:*), Bash(pnpm dlx blazedocs:*), Bash(yarn dlx blazedocs:*), Bash(bunx blazedocs:*)
 ---
 
 # BlazeDocs — Agent Manual (v3.0)
@@ -26,6 +26,10 @@ stderr for errors.
 
 \`\`\`bash
 npm install -g blazedocs
+pnpm add -g blazedocs
+yarn global add blazedocs
+bun add -g blazedocs
+
 # Humans: run the guided setup.
 blazedocs
 
@@ -85,7 +89,7 @@ Multi-file convert emits multiple \`type:"result"\` lines, one per input.
 When an upgrade is available, the final line is:
 
 \`\`\`json
-{"type":"meta","upgrade":{"available":true,"current":"3.0.0","latest":"3.1.0","install_cmd":"npm i -g blazedocs@latest"}}
+{"type":"meta","upgrade":{"available":true,"current":"3.0.0","latest":"3.1.0","install_cmd":"npm i -g blazedocs@3.1.0","install_cmds":[{"manager":"npm","command":"npm i -g blazedocs@3.1.0"},{"manager":"pnpm","command":"pnpm add -g blazedocs@3.1.0"},{"manager":"yarn","command":"yarn global add blazedocs@3.1.0"},{"manager":"bun","command":"bun add -g blazedocs@3.1.0"}]}}
 \`\`\`
 
 Stream-parse with \`jq -c 'select(.type=="result")'\` to drain results, or
@@ -206,7 +210,10 @@ final \`blazedocs\` skill directory. Custom installs skip existing files unless
 - If Auth failed → \`login --api-key-stdin\`.
 - If Network failed → retry, then escalate to user.
 - If Config warned (no apiKey) → \`login\`.
-- If CLI version warned → tell user; optionally \`npm i -g blazedocs@latest\`.
+- If CLI version warned → tell user; optionally upgrade with the package
+  manager they use: \`npm i -g blazedocs@latest\`,
+  \`pnpm add -g blazedocs@latest\`, \`yarn global add blazedocs@latest\`, or
+  \`bun add -g blazedocs@latest\`.
 
 ## Non-interactive guarantees
 
