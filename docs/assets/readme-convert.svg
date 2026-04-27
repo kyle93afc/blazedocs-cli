@@ -1,0 +1,26 @@
+<svg width="960" height="440" viewBox="0 0 960 440" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BlazeDocs convert terminal screenshot</title>
+  <desc id="desc">A terminal showing BlazeDocs converting a PDF to Markdown.</desc>
+  <rect width="960" height="440" rx="14" fill="#0B1020"/>
+  <rect x="1" y="1" width="958" height="438" rx="13" stroke="#24304F"/>
+  <rect x="1" y="1" width="958" height="46" rx="13" fill="#111A2E"/>
+  <circle cx="28" cy="24" r="6" fill="#FF5F57"/>
+  <circle cx="50" cy="24" r="6" fill="#FFBD2E"/>
+  <circle cx="72" cy="24" r="6" fill="#28C840"/>
+  <text x="480" y="29" text-anchor="middle" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="14">blazedocs convert</text>
+  <text x="34" y="92" fill="#9BE7C5" font-family="SFMono-Regular, Consolas, monospace" font-size="22">$</text>
+  <text x="62" y="92" fill="#E7ECF8" font-family="SFMono-Regular, Consolas, monospace" font-size="22">blazedocs convert ./paper.pdf --output paper.md</text>
+  <text x="34" y="142" fill="#6EE7F9" font-family="SFMono-Regular, Consolas, monospace" font-size="20">BlazeDocs</text>
+  <text x="152" y="142" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="20">Converting paper.pdf</text>
+  <rect x="34" y="170" width="680" height="16" rx="8" fill="#1B2744"/>
+  <rect x="34" y="170" width="680" height="16" rx="8" fill="#39D98A"/>
+  <text x="34" y="226" fill="#DDE6FA" font-family="SFMono-Regular, Consolas, monospace" font-size="20">Success</text>
+  <text x="130" y="226" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="20">wrote</text>
+  <text x="200" y="226" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="20">paper.md</text>
+  <text x="34" y="276" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="18">pages</text>
+  <text x="150" y="276" fill="#E7ECF8" font-family="SFMono-Regular, Consolas, monospace" font-size="18">12</text>
+  <text x="34" y="316" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="18">tokens</text>
+  <text x="150" y="316" fill="#E7ECF8" font-family="SFMono-Regular, Consolas, monospace" font-size="18">4,200</text>
+  <text x="34" y="356" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="18">remaining</text>
+  <text x="150" y="356" fill="#E7ECF8" font-family="SFMono-Regular, Consolas, monospace" font-size="18">958 pages</text>
+</svg>

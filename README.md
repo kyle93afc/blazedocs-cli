@@ -1,48 +1,25 @@
 # blazedocs
 
-Turn PDFs into Markdown your agent can read.
+PDF to Markdown for coding agents and developer workflows.
 
-BlazeDocs is an agent-first PDF-to-Markdown CLI and API for AI engineers building Claude Code, Cursor, Codex, RAG, and document-ingestion workflows. It is optimized for one-command usage, structured JSON output, batch-safe automation, and skill-based agent setup.
+BlazeDocs gives Claude Code, Cursor, Codex, CI jobs, and RAG pipelines a small CLI surface for turning PDFs into clean Markdown. It is built for automation first: structured JSON, stable exit codes, pipe-safe output, batch conversion, and a bundled agent skill.
 
-```bash
-npx blazedocs convert ./paper.pdf --json
-```
+![BlazeDocs convert terminal screenshot](docs/assets/readme-convert.svg)
 
 ## Why BlazeDocs
 
-- **Agent-native output:** JSON/JSONL envelopes, stable exit codes, structured errors, and `--raw` for clean pipes.
-- **Fast setup:** try with `npx`; install the agent skill with skill.sh.
-- **Batch-safe workflows:** continue through failures, write summary JSON, and pass idempotency keys for safe external retries.
-- **LLM-ready Markdown:** preserves document structure and strips unresolved generated image refs that break downstream ingestion.
-- **Focused scope:** PDF to Markdown for developers and agents. No dashboard-first document platform.
+- **Markdown that agents can use:** document structure, tables, lists, and OCR output come back as LLM-ready Markdown.
+- **CLI-first workflow:** install once, run from any project, script it in CI, or hand it to your coding agent.
+- **Structured by default when you ask for it:** `--json` emits JSONL envelopes and machine-readable errors.
+- **Clean pipes:** `--raw` writes only Markdown to stdout.
+- **Batch-safe:** continue through failures, write a summary file, and use idempotency keys for external retries.
+- **Agent skill included:** install a BlazeDocs skill so agents know the exact commands, flags, output shapes, and recovery paths.
 
-Use BlazeDocs when your app or coding agent needs PDF content in Markdown now. Do not use it as a full enterprise document-intelligence suite, vector database, or office-file converter.
+Use BlazeDocs when your app or agent needs PDF content in Markdown now. It is not a vector database, office-file converter, or dashboard-first document platform.
 
-## Quickstart
+## Install
 
 Requires Node.js 18 or later.
-
-```bash
-# Convert a local PDF and receive a JSON result
-npx blazedocs convert ./paper.pdf --json
-
-# Convert a PDF from the web
-npx blazedocs convert https://example.com/report.pdf --json
-
-# Stream Markdown only
-npx blazedocs --raw convert ./paper.pdf > paper.md
-```
-
-Use the package runner you already have:
-
-```bash
-npx blazedocs --version
-pnpm dlx blazedocs --version
-yarn dlx blazedocs --version
-bunx blazedocs --version
-```
-
-For a persistent install, use one of these commands:
 
 ```bash
 npm i -g blazedocs
@@ -51,19 +28,40 @@ yarn global add blazedocs
 bun add -g blazedocs
 ```
 
-BlazeDocs requires an API key for conversion. Get one at https://blazedocs.io/dashboard/api.
+Verify the install:
 
 ```bash
-# Set up local credentials
-npx blazedocs
-
-# Verify credentials
-npx blazedocs whoami
+blazedocs --version
 ```
 
-For CI and agents, set `BLAZEDOCS_API_KEY` in the environment. Keys stored by `login` live at `~/.blazedocs/config.json` with mode `0600`; `BLAZEDOCS_API_KEY` wins over the config file.
+## Quickstart
 
-`3.0.0` is the current stable release on the `latest` npm tag.
+Get an API key at https://blazedocs.io/dashboard/api, then run the guided setup:
+
+```bash
+blazedocs
+blazedocs whoami
+```
+
+Convert a PDF:
+
+```bash
+blazedocs convert ./paper.pdf --output paper.md
+```
+
+Stream Markdown to another tool:
+
+```bash
+blazedocs --raw convert ./paper.pdf | pbcopy
+```
+
+Ask for structured output when an agent or script needs to parse results:
+
+```bash
+blazedocs convert ./paper.pdf --json
+```
+
+![BlazeDocs JSON output screenshot](docs/assets/readme-json.svg)
 
 ## Agent Skill
 
@@ -73,36 +71,36 @@ Install the BlazeDocs skill with skill.sh:
 npx skills add https://github.com/kyle93afc/blazedocs-cli --skill blazedocs
 ```
 
-This is the preferred path because it uses the same installer and location discovery as the rest of the agent-skill ecosystem. The direct GitHub URL works even before skill.sh search indexing catches up.
+That is the preferred path because it uses the same installer and location discovery as the rest of the agent-skill ecosystem. The direct GitHub URL works even before skill.sh search indexing catches up.
 
 For local development or offline fallback:
 
 ```bash
-npx blazedocs skills install
-npx blazedocs skills install --target-dir ~/.claude/skills --force
+blazedocs skills install
+blazedocs skills install --target-dir ~/.claude/skills --force
 ```
 
-The fallback installer checks existing project `.agents/skills`, project `.claude/skills`, user `~/.agents/skills`, then user `~/.claude/skills`. If none exist, it creates `./.agents/skills/blazedocs/SKILL.md`.
+Once installed, agents can call `blazedocs skills get core` to load the full operations manual: commands, flags, exit codes, JSON shapes, and common recovery paths.
 
 ## Common Workflows
 
 ```bash
-# Write Markdown to a file
-blazedocs convert ./report.pdf --output report.md
+# Convert a URL
+blazedocs convert https://example.com/report.pdf --output report.md
 
 # Convert multiple PDFs into a directory
 blazedocs convert ./a.pdf ./b.pdf ./c.pdf --output ./markdown/
 
-# Batch mode: keep going after one file fails, then inspect summary.json
+# Keep going after one file fails and write summary.json
 blazedocs convert --batch ./*.pdf --concurrency 1 --on-error continue --summary summary.json --json
 
-# External retry loop: avoid double-billing on repeated attempts
+# Avoid double-billing when your job runner retries the process
 blazedocs convert ./report.pdf --idempotency-key job-2026-04-25-001 --json
 
-# JSONL results only
+# Parse only successful results from JSONL
 blazedocs convert ./*.pdf --json | jq -c 'select(.type=="result")'
 
-# Diagnose auth/network/config/version issues
+# Diagnose auth, network, config, Node, disk, and version issues
 blazedocs doctor --json
 ```
 
@@ -135,6 +133,8 @@ Errors under `--json` go to stderr:
 ```json
 {"error":{"code":"AUTH_REQUIRED","message":"Not authenticated.","hint":"Run `blazedocs` to open setup, or set BLAZEDOCS_API_KEY.","exit_code":3}}
 ```
+
+Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERROR`, `FILE_NOT_FOUND`, `INVALID_ARGS`, `SKILL_NOT_FOUND`, `INTERNAL`.
 
 ## Commands
 
@@ -170,8 +170,6 @@ Exit codes:
 | `2` | Quota or rate limit exceeded |
 | `3` | Authentication required or invalid |
 
-Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERROR`, `FILE_NOT_FOUND`, `INVALID_ARGS`, `SKILL_NOT_FOUND`, `INTERNAL`.
-
 ## Environment
 
 | Variable | Effect |
@@ -183,6 +181,8 @@ Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERR
 | `BLAZEDOCS_ASCII_LOGO` | `1` swaps Unicode block chars for plain ASCII logo. |
 | `NO_COLOR` | Any non-empty value disables ANSI colors. |
 | `CI` | Any non-empty value suppresses interactive prompts. |
+
+For CI and agents, set `BLAZEDOCS_API_KEY` in the environment. Keys stored by `login` live at `~/.blazedocs/config.json` with mode `0600`; `BLAZEDOCS_API_KEY` wins over the config file.
 
 ## Security
 

@@ -1,0 +1,26 @@
+<svg width="960" height="440" viewBox="0 0 960 440" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">BlazeDocs JSON output screenshot</title>
+  <desc id="desc">A terminal showing BlazeDocs JSONL output for an agent workflow.</desc>
+  <rect width="960" height="440" rx="14" fill="#0A0F1D"/>
+  <rect x="1" y="1" width="958" height="438" rx="13" stroke="#24304F"/>
+  <rect x="1" y="1" width="958" height="46" rx="13" fill="#101827"/>
+  <circle cx="28" cy="24" r="6" fill="#FF5F57"/>
+  <circle cx="50" cy="24" r="6" fill="#FFBD2E"/>
+  <circle cx="72" cy="24" r="6" fill="#28C840"/>
+  <text x="480" y="29" text-anchor="middle" fill="#8EA0C7" font-family="SFMono-Regular, Consolas, monospace" font-size="14">agent-safe JSONL</text>
+  <text x="34" y="92" fill="#9BE7C5" font-family="SFMono-Regular, Consolas, monospace" font-size="22">$</text>
+  <text x="62" y="92" fill="#E7ECF8" font-family="SFMono-Regular, Consolas, monospace" font-size="22">blazedocs convert ./paper.pdf --json</text>
+  <text x="34" y="144" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">{"type"</text>
+  <text x="104" y="144" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:"result",</text>
+  <text x="214" y="144" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">"data"</text>
+  <text x="284" y="144" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:{</text>
+  <text x="34" y="184" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">  "markdown"</text>
+  <text x="164" y="184" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:"# Quarterly Report\n\n## Revenue\n\n...",</text>
+  <text x="34" y="224" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">  "page_count"</text>
+  <text x="184" y="224" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:12,</text>
+  <text x="34" y="264" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">  "file_name"</text>
+  <text x="174" y="264" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:"paper.pdf",</text>
+  <text x="34" y="304" fill="#F7CF67" font-family="SFMono-Regular, Consolas, monospace" font-size="18">  "usage"</text>
+  <text x="134" y="304" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">:{"pages_used":42,"pages_remaining":958}</text>
+  <text x="34" y="344" fill="#BAC7E5" font-family="SFMono-Regular, Consolas, monospace" font-size="18">}}</text>
+</svg>
