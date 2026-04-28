@@ -30,7 +30,7 @@ export async function skillsGetCommand(name: string, renderer: Renderer): Promis
   renderer.success({
     name,
     content,
-    version: process.env.npm_package_version ?? "3.0.0",
+    version: process.env.npm_package_version ?? "3.0.1",
   });
 }
 
@@ -118,7 +118,7 @@ function discoverSkillRoot(): string | null {
 }
 
 function candidateSkillRoots(): { project: string[]; user: string[] } {
-  const projectRoots = ancestorDirs(process.cwd()).flatMap((dir) => [
+  const projectRoots = projectAncestors(process.cwd()).flatMap((dir) => [
     path.join(dir, ".agents", "skills"),
     path.join(dir, ".claude", "skills"),
   ]);
@@ -131,14 +131,23 @@ function candidateSkillRoots(): { project: string[]; user: string[] } {
   };
 }
 
-function ancestorDirs(start: string): string[] {
-  const dirs: string[] = [];
-  let current = path.resolve(start);
+// Walk up from cwd looking for a project root marker (.git). If found, return
+// the chain from cwd up to and including that marker. If no marker, return
+// only cwd — a bare ancestor walk to the filesystem root would leak unrelated
+// `.agents/skills` from the user's home or shared parents into "project"
+// scope, and on Windows os.tmpdir() lives under the real user profile so the
+// leak is observable in tests.
+function projectAncestors(start: string): string[] {
+  const cwd = path.resolve(start);
+  const chain: string[] = [cwd];
+  if (fs.existsSync(path.join(cwd, ".git"))) return chain;
+  let current = cwd;
   while (true) {
-    dirs.push(current);
     const parent = path.dirname(current);
-    if (parent === current) return dirs;
+    if (parent === current) return [cwd];
     current = parent;
+    chain.push(current);
+    if (fs.existsSync(path.join(current, ".git"))) return chain;
   }
 }
 

@@ -1,21 +1,23 @@
 {
   "name": "blazedocs",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Agent-first CLI for PDF → Markdown. JSON everywhere, --raw, structured errors. Humans get the polish too.",
   "type": "module",
   "bin": {
-    "blazedocs": "dist/bin/blazedocs.js"
+    "blazedocs": "dist/bin/blazedocs.cjs"
   },
   "files": [
     "dist",
     "docs/assets",
+    "scripts",
     "skills",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "preinstall": "node scripts/preinstall.cjs",
+    "build": "tsc && node scripts/postbuild.mjs",
     "dev": "tsc --watch",
     "pretest": "npm run build",
     "test": "vitest run",
