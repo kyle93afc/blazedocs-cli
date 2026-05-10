@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BlazeDocs CLI v3.0 entry point.
+ * BlazeDocs CLI v3.0.1 entry point.
  *
  * Load-bearing rules (see design doc):
  *   1. Only `commander` is eagerly imported at top level. No UI, no API, no
@@ -18,8 +18,10 @@
 import { Command, Option } from "commander";
 import type { Renderer } from "../ui/renderers/types.js";
 
-const VERSION = "3.0.0";
+const VERSION = "3.0.1";
 const KNOWN_COMMANDS = new Set([
+  "help",
+  "version",
   "login",
   "logout",
   "whoami",
@@ -39,8 +41,9 @@ interface GlobalFlags {
 const program = new Command();
 program
   .name("blazedocs")
-  .description("Agent-first CLI for PDF → Markdown. JSON everywhere, --raw, structured errors.")
+  .description("Agent-first CLI for PDF → Markdown or table-preserving HTML. JSON everywhere, --raw, structured errors.")
   .version(VERSION)
+  .addHelpCommand(false)
   .showHelpAfterError(true)
   .allowExcessArguments(false)
   .addOption(
@@ -59,6 +62,30 @@ program
       const { interactiveCommand } = await import("../commands/interactive.js");
       await interactiveCommand({ version: VERSION, yes: global.yes }, ctx.renderer);
     });
+  });
+
+program
+  .command("version")
+  .description("Print the version")
+  .action(() => {
+    process.stdout.write(`${VERSION}\n`);
+  });
+
+program
+  .command("help")
+  .description("Display help for blazedocs or a command")
+  .argument("[command]", "Command name")
+  .action((commandName?: string) => {
+    if (!commandName) {
+      program.outputHelp();
+      return;
+    }
+    const command = program.commands.find((cmd) => cmd.name() === commandName);
+    if (!command) {
+      process.stderr.write(`error: unknown command '${commandName}'\n`);
+      process.exit(1);
+    }
+    command.outputHelp();
   });
 
 program

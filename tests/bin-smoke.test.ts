@@ -4,7 +4,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 
-const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.js");
+const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.cjs");
 
 // Isolate from any real ~/.blazedocs/config.json on the dev machine.
 function unauthEnv(): NodeJS.ProcessEnv {
@@ -30,8 +30,20 @@ describe("binary smoke tests", () => {
     expect(res.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
   });
 
+  it("version command aliases --version", () => {
+    const res = spawnSync(process.execPath, [BIN, "version"], { encoding: "utf8" });
+    expect(res.status).toBe(0);
+    expect(res.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
   it("--help exits 0 and lists the convert command", () => {
     const res = spawnSync(process.execPath, [BIN, "--help"], { encoding: "utf8" });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("convert");
+  });
+
+  it("help command aliases --help", () => {
+    const res = spawnSync(process.execPath, [BIN, "help"], { encoding: "utf8" });
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("convert");
   });

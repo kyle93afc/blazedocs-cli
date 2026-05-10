@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 
 const execFileAsync = promisify(execFile);
-const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.js");
+const BIN = path.join(process.cwd(), "dist", "bin", "blazedocs.cjs");
 
 let server: http.Server;
 let serverUrl: string;

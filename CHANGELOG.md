@@ -2,6 +2,15 @@
 
 All notable changes to the `blazedocs` CLI are documented here. This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.0.1] — 2026-04-28
+
+### Fixed
+
+- **Old Node installs now fail clearly.** `npm install -g blazedocs` stops on Node.js below 18 with a BlazeDocs-branded upgrade message instead of allowing a later Commander syntax crash.
+- **The installed binary checks Node before loading the ESM CLI.** Users who install with lifecycle scripts disabled still get the same Node.js 18+ message before `commander` is imported.
+- **`blazedocs version` and `blazedocs help` now work.** These aliases match common user expectations alongside `--version` and `--help`.
+- **Skill install discovery no longer treats unrelated parent folders as project skill roots.** Temporary or nested folders now fall back to user skill roots unless a real project marker is found.
+
 ## [3.0.0] — 2026-04-24
 
 Stable release of the v3 agent-first CLI.
