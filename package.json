@@ -1,7 +1,7 @@
 {
   "name": "blazedocs",
   "version": "3.0.0",
-  "description": "Agent-first CLI for PDF → Markdown. JSON everywhere, --raw, structured errors. Humans get the polish too.",
+  "description": "Agent-first CLI for PDF → Markdown or table-preserving HTML. JSON everywhere, --raw, structured errors.",
   "type": "module",
   "bin": {
     "blazedocs": "dist/bin/blazedocs.js"

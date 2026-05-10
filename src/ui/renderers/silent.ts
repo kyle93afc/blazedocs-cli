@@ -42,12 +42,15 @@ export class SilentRenderer implements Renderer {
       const obj = payload as Record<string, unknown>;
       const hasWrittenTo = typeof obj.written_to === "string";
 
-      // Convert payload: markdown to stdout unless a file was written.
+      // Convert payload: requested content to stdout unless a file was written.
       const md = obj.markdown;
       if (typeof md === "string") {
+        const content = obj.output_format === "html"
+          ? (typeof obj.html === "string" ? obj.html : typeof obj.content === "string" ? obj.content : md)
+          : md;
         if (!hasWrittenTo) {
-          safeWrite(this.stdout, md);
-          if (!md.endsWith("\n")) safeWrite(this.stdout, "\n");
+          safeWrite(this.stdout, content);
+          if (!content.endsWith("\n")) safeWrite(this.stdout, "\n");
         }
         return;
       }

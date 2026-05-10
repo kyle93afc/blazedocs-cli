@@ -160,7 +160,7 @@ skillsCmd
 
 program
   .command("convert")
-  .description("Convert one or more PDFs to Markdown")
+  .description("Convert one or more PDFs to Markdown or HTML")
   .argument("[inputs...]", "Local PDF paths or http/https URLs")
   .option("-o, --output <path>", "Output file or directory (trailing slash = directory)")
   .option("--batch", "Enable batch mode and write a summary JSON")
@@ -168,6 +168,7 @@ program
   .option("--on-error <mode>", "Batch error mode: abort or continue", "abort")
   .option("--summary <path>", "Batch summary JSON path")
   .option("--idempotency-key <key>", "Forward an Idempotency-Key for safe API retries")
+  .option("--output-format <format>", "Conversion output format: markdown or html", "markdown")
   .action(async (inputs: string[], opts: {
     output?: string;
     batch?: boolean;
@@ -175,6 +176,7 @@ program
     onError?: "abort" | "continue";
     summary?: string;
     idempotencyKey?: string;
+    outputFormat?: "markdown" | "md" | "html";
   }) => {
     const global = program.opts<GlobalFlags>();
     await run(global, async (ctx) => {

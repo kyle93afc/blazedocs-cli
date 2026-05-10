@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { resolveApiKey } from "../config.js";
-import { convertPdf, type ConvertResult } from "../api.js";
-import { AuthError, BlazeDocsError, FileNotFoundError, InvalidArgsError, exitCodeFor } from "../errors.js";
+import { convertPdf, type ConvertResult, type OutputFormat } from "../api.js";
+import { AuthError, BlazeDocsError, FileNotFoundError, InvalidArgsError, ApiError, exitCodeFor } from "../errors.js";
 import { isInteractive } from "../ui/env.js";
 import type { Renderer } from "../ui/renderers/types.js";
 
@@ -13,6 +13,7 @@ export interface ConvertCmdOptions {
   onError?: "abort" | "continue";
   summary?: string;
   idempotencyKey?: string;
+  outputFormat?: string;
 }
 
 function isDirectoryTarget(target: string): boolean {
@@ -24,7 +25,26 @@ function isDirectoryTarget(target: string): boolean {
   }
 }
 
-function deriveMdName(input: string): string {
+function normalizeOutputFormat(value: OutputFormat | string | undefined): OutputFormat {
+  if (value == null || value === "") return "markdown";
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "markdown" || normalized === "md") return "markdown";
+  if (normalized === "html") return "html";
+  throw new InvalidArgsError("--output-format must be either markdown or html.");
+}
+
+function resultPayload(result: ConvertResult, outputFormat: OutputFormat): string {
+  if (outputFormat === "html") {
+    const html = result.html ?? result.content;
+    if (!html) {
+      throw new ApiError(500, "API did not return HTML content for --output-format html");
+    }
+    return html;
+  }
+  return result.markdown;
+}
+
+function deriveOutputName(input: string, outputFormat: OutputFormat): string {
   let base: string;
   if (input.startsWith("http://") || input.startsWith("https://")) {
     try {
@@ -36,7 +56,7 @@ function deriveMdName(input: string): string {
     base = path.basename(input);
   }
   if (base.toLowerCase().endsWith(".pdf")) base = base.slice(0, -4);
-  return `${base}.md`;
+  return `${base}.${outputFormat === "html" ? "html" : "md"}`;
 }
 
 function parseConcurrency(value: string | number | undefined): number {
@@ -47,10 +67,16 @@ function parseConcurrency(value: string | number | undefined): number {
   return parsed;
 }
 
-function idempotencyKeyFor(input: string, index: number, total: number, base?: string): string | undefined {
+function idempotencyKeyFor(
+  input: string,
+  index: number,
+  total: number,
+  outputFormat: OutputFormat,
+  base?: string,
+): string | undefined {
   if (!base) return undefined;
   if (total === 1) return base;
-  return `${base}:${index + 1}:${deriveMdName(input)}`;
+  return `${base}:${index + 1}:${deriveOutputName(input, outputFormat)}`;
 }
 
 function serializeError(error: unknown): { code: string; message: string; exit_code: number } {
@@ -65,21 +91,22 @@ function serializeError(error: unknown): { code: string; message: string; exit_c
 }
 
 /**
- * Convert PDFs to Markdown.
+ * Convert PDFs to Markdown or table-preserving HTML.
  *
  * Output contract (per renderer):
  *   - JsonRenderer:   emits `{"type":"result","data":<ConvertResult>}` per file on stdout.
  *                     Multi-file input → JSONL (one object per line).
- *   - RawRenderer:    emits the markdown string only, no envelope, no newline added.
- *   - SilentRenderer: writes markdown to stdout only when no `--output` file is set.
+ *   - RawRenderer:    emits the requested payload only, no envelope, no newline added.
+ *   - SilentRenderer: writes the requested payload to stdout only when no `--output` file is set.
  *                     With `--output`, writes the file and emits nothing to stdout
  *                     (matches v2.0.3 silent behavior).
- *   - ClackRenderer:  progress line per file, success box at end with quota remaining.
+ *   - ClackRenderer:  streams the requested payload when no `--output` is set, then
+ *                     writes progress/summary to stderr.
  *
- * The `--output` flag routes the MARKDOWN PAYLOAD to a file on disk REGARDLESS
+ * The `--output` flag routes the requested payload to a file on disk REGARDLESS
  * of renderer. Under --json, the JSON envelope still goes to stdout AND the
- * markdown is also written to the file. Agents can use both: parse the JSON
- * envelope from stdout, and reference the file on disk.
+ * converted payload is also written to the file. Agents can use both: parse the
+ * JSON envelope from stdout, and reference the file on disk.
  */
 export async function convertCommand(
   inputs: string[],
@@ -117,6 +144,7 @@ export async function convertCommand(
     }
   }
 
+  const outputFormat = normalizeOutputFormat(opts.outputFormat);
   const hasOutput = Boolean(opts.output);
   const outputIsDir = hasOutput && isDirectoryTarget(opts.output!);
   const multipleInputs = inputs.length > 1;
@@ -159,14 +187,16 @@ export async function convertCommand(
     renderer.progress(`Converting ${input}...`);
     const result: ConvertResult = await convertPdf(input, {
       apiKey,
-      idempotencyKey: idempotencyKeyFor(input, index, inputs.length, opts.idempotencyKey),
+      idempotencyKey: idempotencyKeyFor(input, index, inputs.length, outputFormat, opts.idempotencyKey),
+      outputFormat,
     });
 
     // Write to disk if --output was specified.
     let writtenPath: string | undefined;
     if (opts.output) {
-      const target = outputIsDir ? path.join(opts.output, deriveMdName(input)) : opts.output;
-      const payload = result.markdown.endsWith("\n") ? result.markdown : result.markdown + "\n";
+      const target = outputIsDir ? path.join(opts.output, deriveOutputName(input, outputFormat)) : opts.output;
+      const content = resultPayload(result, outputFormat);
+      const payload = content.endsWith("\n") ? content : content + "\n";
       fs.writeFileSync(target, payload);
       writtenPath = target;
     }

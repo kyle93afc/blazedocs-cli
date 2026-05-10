@@ -67,9 +67,12 @@ export class ClackRenderer implements Renderer {
             `${c.success("✓")} Wrote ${c.bold(writtenTo)} (${pages} pages${quotaHint})\n`,
           );
         } else {
-          // No --output. Stream markdown to stdout (v2.0.3 parity), summary on stderr.
-          this.stdout.write(obj.markdown as string);
-          if (!(obj.markdown as string).endsWith("\n")) this.stdout.write("\n");
+          // No --output. Stream requested content to stdout (v2.0.3 markdown parity), summary on stderr.
+          const content = obj.output_format === "html"
+            ? (typeof obj.html === "string" ? obj.html : typeof obj.content === "string" ? obj.content : obj.markdown as string)
+            : obj.markdown as string;
+          this.stdout.write(content);
+          if (!content.endsWith("\n")) this.stdout.write("\n");
           const quotaHint = remaining != null ? ` · ${remaining} remaining this month` : "";
           safeWrite(this.stderr,
             `${c.success("✓")} ${c.bold(String(obj.file_name))} (${pages} pages${quotaHint})\n`,
