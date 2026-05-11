@@ -41,9 +41,12 @@ export class RawRenderer implements Renderer {
     if (payload && typeof payload === "object") {
       const obj = payload as Record<string, unknown>;
 
-      // Convert: markdown only, no newline added.
+      // Convert: requested payload only, no newline added.
       if (typeof obj.markdown === "string") {
-        safeWrite(this.stdout, obj.markdown);
+        const payload = obj.output_format === "html"
+          ? (typeof obj.html === "string" ? obj.html : typeof obj.content === "string" ? obj.content : obj.markdown)
+          : obj.markdown;
+        safeWrite(this.stdout, payload);
         return;
       }
 

@@ -156,6 +156,139 @@ describe("convertPdf response parsing (regression for v1.1.0 empty-file bug)", (
     expect(seenBody).toBeInstanceOf(FormData);
   });
 
+  it("passes output_format through storage convert and preserves HTML fields", async () => {
+    const file = mkTempPdf();
+    const seen: Array<{ url: string; init?: RequestInit }> = [];
+    const stub: typeof fetch = async (_url, init) => {
+      const url = String(_url);
+      seen.push({ url, init });
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(200, {
+          success: true,
+          data: { upload_url: "https://upload.example.test/convex" },
+        });
+      }
+      if (url === "https://upload.example.test/convex") {
+        return jsonResponse(200, { storageId: "kg29storage" });
+      }
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          output_format: "html",
+          content: "<!doctype html><html><body><table></table></body></html>",
+          markdown: "# Hello\n\n[tbl-0.html](tbl-0.html)",
+          html: "<!doctype html><html><body><table></table></body></html>",
+          table_count: 1,
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    const result = await convertPdf(file, { apiKey: "bd_test_key", outputFormat: "html", fetchImpl: stub });
+
+    const convertCall = seen.find((entry) => entry.url.endsWith("/convert"));
+    expect(JSON.parse(String(convertCall?.init?.body))).toMatchObject({
+      storage_id: "kg29storage",
+      output_format: "html",
+    });
+    expect(result.output_format).toBe("html");
+    expect(result.html).toContain("<table>");
+    expect(result.content).toContain("<table>");
+    expect(result.table_count).toBe(1);
+  });
+
+  it("uses requested html format when API omits output_format", async () => {
+    const file = mkTempPdf();
+    const stub: typeof fetch = async (_url, init) => {
+      const url = String(_url);
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(200, { success: true, data: { upload_url: "https://upload.example.test/convex" } });
+      }
+      if (url === "https://upload.example.test/convex") return jsonResponse(200, { storageId: "kg29storage" });
+      expect(JSON.parse(String(init?.body))).toMatchObject({ output_format: "html" });
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello",
+          html: "<!doctype html><html><body>Hello</body></html>",
+          content: "<!doctype html><html><body>Hello</body></html>",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    const result = await convertPdf(file, { apiKey: "bd_test_key", outputFormat: "html", fetchImpl: stub });
+
+    expect(result.output_format).toBe("html");
+    expect(result.html).toContain("<!doctype html>");
+  });
+
+  it("fails html mode when API does not return html content", async () => {
+    const file = mkTempPdf();
+    const stub: typeof fetch = async (_url) => {
+      const url = String(_url);
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(200, { success: true, data: { upload_url: "https://upload.example.test/convex" } });
+      }
+      if (url === "https://upload.example.test/convex") return jsonResponse(200, { storageId: "kg29storage" });
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          markdown: "# Hello",
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    await expect(convertPdf(file, { apiKey: "bd_test_key", outputFormat: "html", fetchImpl: stub })).rejects.toThrow(
+      /did not return HTML content/,
+    );
+  });
+
+  it("passes output_format in multipart fallback", async () => {
+    const file = mkTempPdf();
+    let seenBody: BodyInit | null | undefined;
+    const stub: typeof fetch = async (_url, init) => {
+      const url = String(_url);
+      if (url.endsWith("/upload-url")) {
+        return jsonResponse(404, { error: "not found" });
+      }
+      seenBody = init?.body;
+      return jsonResponse(200, {
+        success: true,
+        data: {
+          output_format: "html",
+          content: "<html></html>",
+          markdown: "# Hello",
+          html: "<html></html>",
+          table_count: 0,
+          page_count: 1,
+          token_count: 5,
+          processing_time_ms: 100,
+          file_name: "sample.pdf",
+        },
+        usage: { pages_used: 1, pages_limit: 10, pages_remaining: 9 },
+      });
+    };
+
+    await convertPdf(file, { apiKey: "bd_test_key", outputFormat: "html", fetchImpl: stub });
+
+    expect(seenBody).toBeInstanceOf(FormData);
+    expect((seenBody as FormData).get("output_format")).toBe("html");
+  });
+
   it("reads markdown from result.data.markdown, not result.markdown", async () => {
     const file = mkTempPdf();
     const stub: typeof fetch = async () =>

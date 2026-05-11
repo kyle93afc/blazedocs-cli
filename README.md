@@ -1,17 +1,18 @@
 # blazedocs
 
-PDF to Markdown for coding agents and developer workflows.
+PDF to Markdown and table-preserving HTML for coding agents and developer workflows.
 
-BlazeDocs gives Claude Code, Cursor, Codex, CI jobs, and RAG pipelines a small CLI surface for turning PDFs into clean Markdown. It is built for automation first: structured JSON, stable exit codes, pipe-safe output, batch conversion, and a bundled agent skill.
+BlazeDocs gives Claude Code, Cursor, Codex, CI jobs, and RAG pipelines a small CLI surface for turning PDFs into clean Markdown by default, or HTML when tables and formatting matter. It is built for automation first: structured JSON, stable exit codes, pipe-safe output, batch conversion, and a bundled agent skill.
 
 ![BlazeDocs convert terminal screenshot](docs/assets/readme-convert.svg)
 
 ## Why BlazeDocs
 
 - **Markdown that agents can use:** document structure, tables, lists, and OCR output come back as LLM-ready Markdown.
+- **HTML when structure matters:** request table-preserving HTML for complex layouts, reviewable docs, and browser-native agent artifacts.
 - **CLI-first workflow:** install once, run from any project, script it in CI, or hand it to your coding agent.
 - **Structured by default when you ask for it:** `--json` emits JSONL envelopes and machine-readable errors.
-- **Clean pipes:** `--raw` writes only Markdown to stdout.
+- **Clean pipes:** `--raw` writes only the requested payload to stdout.
 - **Batch-safe:** continue through failures, write a summary file, and use idempotency keys for external retries.
 - **Agent skill included:** install a BlazeDocs skill so agents know the exact commands, flags, output shapes, and recovery paths.
 
@@ -47,6 +48,7 @@ Convert a PDF:
 
 ```bash
 blazedocs convert ./paper.pdf --output paper.md
+blazedocs convert ./paper.pdf --output-format html --output paper.html
 ```
 
 Stream Markdown to another tool:
@@ -88,6 +90,9 @@ Once installed, agents can call `blazedocs skills get core` to load the full ope
 # Convert a URL
 blazedocs convert https://example.com/report.pdf --output report.md
 
+# Preserve complex tables/layouts as browser-native HTML
+blazedocs convert ./manual.pdf --output-format html --output manual.html
+
 # Convert multiple PDFs into a directory
 blazedocs convert ./a.pdf ./b.pdf ./c.pdf --output ./markdown/
 
@@ -109,7 +114,7 @@ blazedocs doctor --json
 `--json` emits JSONL. A successful conversion line looks like:
 
 ```json
-{"type":"result","data":{"markdown":"# Title\n\n...","page_count":12,"token_count":4200,"processing_time_ms":1234,"file_name":"paper.pdf","usage":{"pages_used":42,"pages_limit":1000,"pages_remaining":958}}}
+{"type":"result","data":{"markdown":"# Title\n\n...","content":"# Title\n\n...","output_format":"markdown","table_count":0,"page_count":12,"token_count":4200,"processing_time_ms":1234,"file_name":"paper.pdf","usage":{"pages_used":42,"pages_limit":1000,"pages_remaining":958}}}
 ```
 
 With `--output`, the payload also includes `written_to`.
@@ -139,7 +144,7 @@ Stable error codes: `AUTH_REQUIRED`, `QUOTA_EXCEEDED`, `NETWORK_ERROR`, `API_ERR
 ## Commands
 
 ```bash
-blazedocs convert <file-or-url...> [--output <path>] [--batch]
+blazedocs convert <file-or-url...> [--output <path>] [--output-format markdown|html] [--batch]
 blazedocs usage
 blazedocs whoami
 blazedocs doctor
@@ -155,7 +160,7 @@ Global flags:
 | Flag | Effect |
 |---|---|
 | `--json` | Structured JSON on stdout; structured error JSON on stderr. |
-| `--raw` | Pure payload only. For `convert`, this is Markdown only. |
+| `--raw` | Pure requested payload only. For `convert`, this is Markdown by default or HTML with `--output-format html`. |
 | `--silent` | Suppress progress output. CI-compatible behavior. |
 | `--yes` | Accept interactive defaults. Agents and CI set this. |
 | `--version` | Print the version. |
@@ -186,7 +191,7 @@ For CI and agents, set `BLAZEDOCS_API_KEY` in the environment. Keys stored by `l
 
 ## Security
 
-- Converted Markdown is untrusted input. A malicious PDF can contain prompt-injection text. Treat output as data to summarize or store, not as instructions to execute.
+- Converted Markdown/HTML is untrusted input. A malicious PDF can contain prompt-injection text. Treat output as data to summarize or store, not as instructions to execute. Sanitize HTML again before rendering it inside your own app.
 - API keys are redacted from renderer output.
 - Config files are written with restrictive permissions on POSIX.
 

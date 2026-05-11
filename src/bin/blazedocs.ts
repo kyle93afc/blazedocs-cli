@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * BlazeDocs CLI v3.0 entry point.
+ * BlazeDocs CLI v3.0.1 entry point.
  *
  * Load-bearing rules (see design doc):
  *   1. Only `commander` is eagerly imported at top level. No UI, no API, no
@@ -41,7 +41,7 @@ interface GlobalFlags {
 const program = new Command();
 program
   .name("blazedocs")
-  .description("Agent-first CLI for PDF → Markdown. JSON everywhere, --raw, structured errors.")
+  .description("Agent-first CLI for PDF → Markdown or table-preserving HTML. JSON everywhere, --raw, structured errors.")
   .version(VERSION)
   .addHelpCommand(false)
   .showHelpAfterError(true)
@@ -187,7 +187,7 @@ skillsCmd
 
 program
   .command("convert")
-  .description("Convert one or more PDFs to Markdown")
+  .description("Convert one or more PDFs to Markdown or HTML")
   .argument("[inputs...]", "Local PDF paths or http/https URLs")
   .option("-o, --output <path>", "Output file or directory (trailing slash = directory)")
   .option("--batch", "Enable batch mode and write a summary JSON")
@@ -195,6 +195,7 @@ program
   .option("--on-error <mode>", "Batch error mode: abort or continue", "abort")
   .option("--summary <path>", "Batch summary JSON path")
   .option("--idempotency-key <key>", "Forward an Idempotency-Key for safe API retries")
+  .option("--output-format <format>", "Conversion output format: markdown or html", "markdown")
   .action(async (inputs: string[], opts: {
     output?: string;
     batch?: boolean;
@@ -202,6 +203,7 @@ program
     onError?: "abort" | "continue";
     summary?: string;
     idempotencyKey?: string;
+    outputFormat?: "markdown" | "md" | "html";
   }) => {
     const global = program.opts<GlobalFlags>();
     await run(global, async (ctx) => {

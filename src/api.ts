@@ -60,8 +60,14 @@ function resolveApiBase(): string {
 
 export const API_BASE = resolveApiBase();
 
+export type OutputFormat = "markdown" | "html";
+
 export interface ConvertResult {
   markdown: string;
+  html?: string;
+  content?: string;
+  output_format?: OutputFormat;
+  table_count?: number;
   page_count: number;
   token_count: number;
   processing_time_ms: number;
@@ -200,6 +206,7 @@ export interface ConvertOptions {
   apiKey: string;
   timeoutMs?: number;
   idempotencyKey?: string;
+  outputFormat?: OutputFormat;
   /** Optional fetch override for testing. */
   fetchImpl?: typeof fetch;
 }
@@ -223,11 +230,12 @@ export function stripUnresolvedImageRefs(markdown: string): string {
 async function convertPdfMultipart(
   fileBuffer: Buffer,
   fileName: string,
-  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">> & Pick<ConvertOptions, "outputFormat">,
   idempotencyKey?: string,
 ): Promise<Response> {
   const formData = new FormData();
   formData.append("file", new File([fileBytesFromBuffer(fileBuffer)], fileName, { type: "application/pdf" }));
+  if (options.outputFormat) formData.append("output_format", options.outputFormat);
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${options.apiKey}`,
@@ -245,7 +253,7 @@ async function convertPdfMultipart(
 async function convertPdfViaStorage(
   fileBuffer: Buffer,
   fileName: string,
-  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">>,
+  options: Required<Pick<ConvertOptions, "apiKey" | "timeoutMs" | "fetchImpl">> & Pick<ConvertOptions, "outputFormat">,
   idempotencyKey?: string,
 ): Promise<Response | null> {
   const uploadUrlResponse = await options.fetchImpl(`${API_BASE}/upload-url`, {
@@ -312,6 +320,7 @@ async function convertPdfViaStorage(
       storage_id: storageId,
       file_name: fileName,
       file_size: fileBuffer.byteLength,
+      ...(options.outputFormat ? { output_format: options.outputFormat } : {}),
     }),
     signal: AbortSignal.timeout(options.timeoutMs),
   });
@@ -352,8 +361,8 @@ export async function convertPdf(
   let response: Response;
   try {
     response =
-      (await convertPdfViaStorage(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }, idempotencyKey)) ??
-      (await convertPdfMultipart(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl }, idempotencyKey));
+      (await convertPdfViaStorage(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl, outputFormat: options.outputFormat }, idempotencyKey)) ??
+      (await convertPdfMultipart(fileBuffer, fileName, { apiKey, timeoutMs, fetchImpl, outputFormat: options.outputFormat }, idempotencyKey));
   } catch (e) {
     if (e instanceof AuthError || e instanceof QuotaExceededError || e instanceof ApiError) {
       throw e;
@@ -376,8 +385,17 @@ export async function convertPdf(
     );
   }
 
+  const resolvedOutputFormat = parsed.data.output_format ?? options.outputFormat ?? "markdown";
+  if (options.outputFormat === "html" && !parsed.data.html && !parsed.data.content) {
+    throw new ApiError(response.status, "API did not return HTML content for --output-format html");
+  }
+
   return {
     markdown: stripUnresolvedImageRefs(parsed.data.markdown),
+    html: parsed.data.html,
+    content: parsed.data.content,
+    output_format: resolvedOutputFormat,
+    table_count: parsed.data.table_count,
     page_count: parsed.data.page_count,
     token_count: parsed.data.token_count,
     processing_time_ms: parsed.data.processing_time_ms,
